@@ -5,7 +5,7 @@ import { getDownloadUrl, generateDetailStream } from '../api'
 /** 테이블 헤더 셀 공통 스타일 */
 const TH_STYLE: React.CSSProperties = {
   padding: '10px 8px',
-  textAlign: 'left',
+  textAlign: 'center',
   fontWeight: 600,
   fontSize: 14,
 }

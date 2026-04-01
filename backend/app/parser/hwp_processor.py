@@ -23,7 +23,10 @@ _FIELD_KEYWORDS = {
 }
 
 # 세부내용 파싱 종료 신호 키워드
-_CONTENT_STOP_KEYWORDS = {"산출물", "참고사항", "요구사항고유번호"}
+# - _CONTENT_STOP_EXACT: 셀 전체가 해당 키워드와 완전 일치할 때만 종료 (부분 포함 시 오탐 방지)
+# - _CONTENT_STOP_CONTAINS: 셀에 포함되어 있으면 종료 (테이블 헤더 식별용)
+_CONTENT_STOP_EXACT = {"산출물", "참고사항"}
+_CONTENT_STOP_CONTAINS = {"요구사항고유번호"}
 
 
 class HwpProcessor:
@@ -151,8 +154,11 @@ class HwpProcessor:
             norm = _normalize(cell)
             raw = cell.strip()
 
-            # 종료 신호
-            if any(kw in norm for kw in _CONTENT_STOP_KEYWORDS):
+            # 종료 신호: 완전 일치 키워드 또는 포함 키워드 확인
+            # _CONTENT_STOP_EXACT: 셀 내용에 "산출물" 단어가 있어도 오탐되지 않도록 완전 일치만 허용
+            if norm in _CONTENT_STOP_EXACT:
+                break
+            if any(kw in norm for kw in _CONTENT_STOP_CONTAINS):
                 break
 
             # 노이즈 키워드 제외

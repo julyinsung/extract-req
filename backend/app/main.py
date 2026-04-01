@@ -4,6 +4,15 @@ CORS는 SEC-006-02에 따라 와일드카드 '*' 없이 localhost:3000만 허용
 SEC-002-01: .env 파일에서 환경변수를 로드하여 ANTHROPIC_API_KEY를 주입한다.
 """
 
+import sys
+
+# Windows에서 asyncio.create_subprocess_exec 지원을 위해 ProactorEventLoop를 사전 설정한다.
+# SelectorEventLoop(uvicorn --reload 기본값)는 subprocess를 지원하지 않아
+# claude-agent-sdk의 CLIConnectionError(NotImplementedError)가 발생한다.
+if sys.platform == "win32":
+    import asyncio
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

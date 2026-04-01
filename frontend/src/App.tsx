@@ -20,7 +20,7 @@ export default function App() {
   const isGenerating = useAppStore((s) => s.isGenerating)
 
   return (
-    <div style={{ fontFamily: 'Pretendard, Inter, sans-serif', maxWidth: 1400, margin: '0 auto', padding: 24 }}>
+    <div style={{ fontFamily: 'Pretendard, Inter, sans-serif', width: '100%', padding: '24px 32px', boxSizing: 'border-box' }}>
       {/* 헤더: 제목 + (parsed 이후) 새 파일 업로드 버튼 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h1 style={{ color: '#2563EB', margin: 0, fontSize: 24, fontWeight: 700 }}>

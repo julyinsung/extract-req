@@ -95,13 +95,10 @@ export function DetailReqTable() {
           <thead>
             {/* 디자인 토큰: 헤더 배경 #4472C4 */}
             <tr style={{ background: '#4472C4', color: '#fff' }}>
-              <th scope="col" style={{ ...TH_STYLE, width: '12%' }}>
+              <th scope="col" style={{ ...TH_STYLE, width: '14%' }}>
                 상세 ID
               </th>
-              <th scope="col" style={{ ...TH_STYLE, width: '10%' }}>
-                상위 ID
-              </th>
-              <th scope="col" style={{ ...TH_STYLE, width: '10%' }}>
+              <th scope="col" style={{ ...TH_STYLE, width: '12%' }}>
                 분류
               </th>
               <th scope="col" style={{ ...TH_STYLE, width: '20%' }}>
@@ -116,7 +113,7 @@ export function DetailReqTable() {
             {detailReqs.length === 0 && !isGenerating ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={4}
                   style={{ ...TD_STYLE, textAlign: 'center', color: '#94A3B8', padding: '32px 8px' }}
                 >
                   상세요구사항이 없습니다
@@ -140,8 +137,6 @@ export function DetailReqTable() {
                     <td style={{ ...TD_STYLE, fontWeight: 600, paddingLeft: 16 }}>
                       {req.id}
                     </td>
-                    {/* 상위 ID — 읽기 전용 */}
-                    <td style={{ ...TD_STYLE, color: '#64748B' }}>{req.parent_id}</td>
                     {/* 편집 가능 필드: category / name / content */}
                     {editableFields.map((field) => (
                       <td

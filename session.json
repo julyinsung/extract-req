@@ -2,16 +2,16 @@
   "project": "REQ",
   "vulcan_src": "C:\\Users\\user\\Documents\\antig-workspace\\Vulcan-Claude-Anvil",
   "vulcan_version": "1.0.0",
-  "current_gate": "gate5",
+  "current_gate": "completed",
   "gate_status": {
     "gate1": "done",
     "gate2": "done",
     "gate3": "done",
     "impl": "done",
     "gate4": "done",
-    "gate5": "pending"
+    "gate5": "done"
   },
-  "feature": "REQ-007 QA Pass + BUG-001/002 수정 검증",
+  "feature": "HWP 제안요구사항 → 상세요구사항 자동생성 도구",
   "started": "2026-04-01",
   "completed": [
     "Gate 1 요구사항 - HWP 제안요구사항 → 상세요구사항 자동생성 도구",
@@ -19,7 +19,8 @@
     "Gate 3 테스트 플랜 - REQ-007 AI 백엔드 선택 옵션",
     "Gate 4 QA 검토 - REQ-007 AI 백엔드 선택 옵션",
     "구현 - BUG-001/002 수정 완료 (PMR 파싱 누락, 헤더 정렬)",
-    "Gate 4 QA 검토 - REQ-007 QA Pass + BUG-001/002 수정 검증"
+    "Gate 4 QA 검토 - REQ-007 QA Pass + BUG-001/002 수정 검증",
+    "Gate 5 최종 승인 - HWP 제안요구사항 → 상세요구사항 자동생성 도구"
   ],
   "pending": [],
   "blocked": [

@@ -30,8 +30,12 @@ pip install -r requirements.txt
 
 ```bash
 cd backend
-uvicorn app.main:app --reload --port 8000
+python run.py
 ```
+
+> **Windows 주의**: `claude-agent-sdk`는 `asyncio.ProactorEventLoop`가 필요하다.
+> `run.py`는 uvicorn 시작 전에 `WindowsProactorEventLoopPolicy`를 설정하여 이 문제를 해결한다.
+> 직접 `uvicorn` 명령어로 실행하면 `SelectorEventLoop`가 사용되어 SDK 호출이 실패한다.
 
 서버 기동 후 헬스 체크:
 ```bash

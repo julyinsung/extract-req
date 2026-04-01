@@ -15,6 +15,7 @@ const TD_STYLE: React.CSSProperties = {
   padding: '8px',
   fontSize: 14,
   verticalAlign: 'top',
+  textAlign: 'left',
 }
 
 /**

@@ -1,0 +1,19 @@
+{
+  "project": "REQ",
+  "vulcan_src": "C:\\Users\\user\\Documents\\antig-workspace\\Vulcan-Claude-Anvil",
+  "vulcan_version": "1.0.0",
+  "current_gate": "gate1",
+  "gate_status": {
+    "gate1": "pending",
+    "gate2": "pending",
+    "gate3": "pending",
+    "impl": "pending",
+    "gate4": "pending",
+    "gate5": "pending"
+  },
+  "feature": "",
+  "started": "2026-04-01",
+  "completed": [],
+  "pending": [],
+  "blocked": []
+}

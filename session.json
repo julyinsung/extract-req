@@ -2,19 +2,20 @@
   "project": "REQ",
   "vulcan_src": "C:\\Users\\user\\Documents\\antig-workspace\\Vulcan-Claude-Anvil",
   "vulcan_version": "1.0.0",
-  "current_gate": "gate2",
+  "current_gate": "gate3",
   "gate_status": {
     "gate1": "done",
-    "gate2": "pending",
+    "gate2": "done",
     "gate3": "pending",
     "impl": "pending",
     "gate4": "pending",
     "gate5": "pending"
   },
-  "feature": "HWP 제안요구사항 → 상세요구사항 자동생성 도구",
+  "feature": "REQ-007 AI 백엔드 선택 옵션",
   "started": "2026-04-01",
   "completed": [
-    "Gate 1 요구사항 - HWP 제안요구사항 → 상세요구사항 자동생성 도구"
+    "Gate 1 요구사항 - HWP 제안요구사항 → 상세요구사항 자동생성 도구",
+    "Gate 2 설계 - REQ-007 AI 백엔드 선택 옵션"
   ],
   "pending": [],
   "blocked": [

@@ -11,7 +11,7 @@
     "gate4": "done",
     "gate5": "pending"
   },
-  "feature": "REQ-007 AI 백엔드 선택 옵션",
+  "feature": "버그 수정: PMR 파싱 누락, 테이블 헤더 정렬",
   "started": "2026-04-01",
   "completed": [
     "Gate 1 요구사항 - HWP 제안요구사항 → 상세요구사항 자동생성 도구",

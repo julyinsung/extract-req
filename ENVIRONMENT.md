@@ -15,6 +15,14 @@
 
 ```bash
 cd backend
+
+# venv 생성 (최초 1회)
+python -m venv .venv
+
+# venv 활성화
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # Mac/Linux
+
 pip install -r requirements.txt
 ```
 

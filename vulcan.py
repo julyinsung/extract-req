@@ -300,6 +300,48 @@ def check_trace(project_dir="."):
         print("이슈 0건 - Gate 완료 가능합니다.")
 
 
+# ── rollback ──────────────────────────────────────────────────────────────
+
+def cmd_rollback(gate, reason="", project_dir="."):
+    session = load_session(project_dir)
+
+    if gate not in GATE_LABELS:
+        print(f"오류: 유효하지 않은 gate - {gate}")
+        print(f"  사용 가능: {', '.join(GATE_LABELS.keys())}")
+        sys.exit(1)
+
+    gate_order = ["gate1", "gate2", "gate3", "impl", "gate4", "gate5"]
+    rollback_idx = gate_order.index(gate)
+
+    # 대상 gate 및 이후 모든 gate를 pending으로 리셋
+    for g in gate_order[rollback_idx:]:
+        session["gate_status"][g] = "pending"
+
+    session["current_gate"] = gate
+
+    # completed 목록에서 rollback 대상 gate 이후 항목 제거
+    labels_to_remove = {GATE_LABELS[g] for g in gate_order[rollback_idx:]}
+    session["completed"] = [
+        c for c in session.get("completed", [])
+        if not any(c.startswith(label) for label in labels_to_remove)
+    ]
+
+    if reason:
+        session.setdefault("blocked", [])
+        note = f"[rollback to {gate}] {reason}"
+        if note not in session["blocked"]:
+            session["blocked"].append(note)
+
+    save_session(session, project_dir)
+    print(f"  rollback 완료: {gate} ({GATE_LABELS[gate]}) 부터 재시작")
+    print(f"  리셋된 Gate: {', '.join(gate_order[rollback_idx:])}")
+
+    commit_msg = f"rollback: {gate}부터 재시작 - {GATE_LABELS[gate]}"
+    if reason:
+        commit_msg += f" ({reason})"
+    git_commit(commit_msg, project_dir, include_source=False)
+
+
 # ── session ────────────────────────────────────────────────────────────────
 
 def cmd_session(gate, status, feature, project_dir="."):
@@ -663,6 +705,7 @@ def main():
   init         새 프로젝트 초기화 (Vulcan-Claude 디렉토리에서 실행)
   check-trace  현재 Gate 정합성 검사 (프로젝트 디렉토리에서 실행)
   session      Gate 상태 업데이트 + git commit (프로젝트 디렉토리에서 실행)
+  rollback     특정 Gate부터 재시작 (해당 Gate 이후 모두 pending 리셋)
   export       snapshot.json 생성 (프로젝트 디렉토리에서 실행)
   upgrade      프레임워크 파일 최신화 (프로젝트 디렉토리에서 실행)
   version      현재 프레임워크 버전 확인
@@ -671,6 +714,7 @@ def main():
   python vulcan.py init ../my-app "MyApp"
   python vulcan.py check-trace
   python vulcan.py session --gate gate1 --status done --feature "로그인 기능"
+  python vulcan.py rollback --gate gate2 --reason "요구사항 추가"
   python vulcan.py export
   python vulcan.py upgrade
         """
@@ -688,6 +732,10 @@ def main():
     p_session.add_argument("--gate", required=True, choices=list(GATE_LABELS.keys()), help="Gate 이름")
     p_session.add_argument("--status", required=True, choices=["done", "pending"], help="상태")
     p_session.add_argument("--feature", default="", help="작업 기능명")
+
+    p_rollback = subparsers.add_parser("rollback", help="특정 Gate부터 재시작 (이후 Gate 모두 pending 리셋)")
+    p_rollback.add_argument("--gate", required=True, choices=list(GATE_LABELS.keys()), help="재시작할 Gate")
+    p_rollback.add_argument("--reason", default="", help="롤백 사유 (선택)")
 
     p_export = subparsers.add_parser("export", help="snapshot.json 생성")
     p_export.add_argument("--output", default="snapshot.json", help="출력 파일명")
@@ -707,6 +755,8 @@ def main():
         check_trace()
     elif args.command == "session":
         cmd_session(gate=args.gate, status=args.status, feature=args.feature)
+    elif args.command == "rollback":
+        cmd_rollback(gate=args.gate, reason=args.reason)
     elif args.command == "export":
         cmd_export(output=args.output)
     elif args.command == "upgrade":

@@ -151,6 +151,92 @@ export function parseRequirementsStats(): RequirementsStats {
   return { groups, total, acDefined, missing, implemented }
 }
 
+// ── Git 타임라인 ────────────────────────────────────────────────────────────
+
+export interface GitEntry {
+  hash: string
+  date: string
+  message: string
+  type: 'session' | 'rollback' | 'init'
+}
+
+export function readGitTimeline(limit = 8): GitEntry[] {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { execSync } = require('child_process')
+    const raw: string = execSync(
+      'git log --date=short --pretty=format:%h|%ad|%s -n 50',
+      { cwd: PROJECT_ROOT, encoding: 'utf-8' }
+    )
+    return raw.trim().split('\n')
+      .filter(Boolean)
+      .map(line => {
+        const first  = line.indexOf('|')
+        const second = line.indexOf('|', first + 1)
+        const hash    = line.slice(0, first)
+        const date    = line.slice(first + 1, second)
+        const message = line.slice(second + 1)
+        const type: GitEntry['type'] =
+          message.startsWith('rollback:') ? 'rollback' :
+          message.startsWith('session:')  ? 'session'  :
+          message.startsWith('init:')     ? 'init'     : 'session'
+        return { hash, date, message, type }
+      })
+      .filter(e => e.message.startsWith('session:') || e.message.startsWith('rollback:') || e.message.startsWith('init:'))
+      .slice(0, limit)
+  } catch {
+    return []
+  }
+}
+
+// ── 설계 문서 목록 ───────────────────────────────────────────────────────────
+
+export interface DesignDoc {
+  name: string
+  slug: string[]
+}
+
+export function readDesignDocs(): DesignDoc[] {
+  const dir = path.join(PROJECT_ROOT, 'docs', '02-design')
+  if (!fs.existsSync(dir)) return []
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.md'))
+    .sort()
+    .map(f => ({ name: f.replace('.md', ''), slug: ['02-design', f] }))
+}
+
+// ── QA 리뷰 결과 ─────────────────────────────────────────────────────────────
+
+export interface QAResult {
+  name: string
+  verdict: 'pass' | 'fail' | 'unknown'
+  blockers: string[]
+  slug: string[]
+}
+
+export function readQAResults(): QAResult[] {
+  const dir = path.join(PROJECT_ROOT, 'docs', '04-review')
+  if (!fs.existsSync(dir)) return []
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('-review.md'))
+    .sort()
+    .map(f => {
+      const content = fs.readFileSync(path.join(dir, f), 'utf-8')
+      const verdict: QAResult['verdict'] =
+        /판정.*✅/.test(content) || /판정.*Pass/i.test(content) ? 'pass' :
+        /판정.*❌/.test(content) || /판정.*Fail/i.test(content) ? 'fail' :
+        'unknown'
+      const blockers: string[] = []
+      let inBlocker = false
+      for (const line of content.split('\n')) {
+        if (/🔴\s*필수 수정/.test(line)) { inBlocker = true; continue }
+        if (inBlocker && line.startsWith('##')) { inBlocker = false; continue }
+        if (inBlocker && /^\s*\d+\./.test(line)) blockers.push(line.replace(/^\s*\d+\.\s*/, '').trim())
+      }
+      return { name: f.replace('.md', ''), verdict, blockers: blockers.slice(0, 3), slug: ['04-review', f] }
+    })
+}
+
 export function parseTestStats(): TestStats {
   const p = path.join(PROJECT_ROOT, 'docs', '03-test-plan', 'TEST_PLAN.md')
   if (!fs.existsSync(p)) return { total: 0, passed: 0, failed: 0, skipped: 0 }

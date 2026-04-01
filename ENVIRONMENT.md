@@ -100,12 +100,43 @@ npm run build
 
 | 변수명 | 설명 | 기본값 | 필수 |
 |--------|------|--------|------|
-| `ANTHROPIC_API_KEY` | Claude API 인증 키 | 없음 | 예 |
+| `ANTHROPIC_API_KEY` | Claude API 인증 키 (`AI_BACKEND=anthropic_api` 시 필수) | 없음 | 조건부 |
+| `AI_BACKEND` | AI 백엔드 선택 (`anthropic_api` 또는 `claude_code_sdk`) | `claude_code_sdk` | 아니오 |
 
 `.env` 파일 설정 방법:
 ```bash
 cp backend/.env.example backend/.env
-# 에디터로 backend/.env 파일을 열어 ANTHROPIC_API_KEY 값을 입력
+# 에디터로 backend/.env 파일을 열어 필요한 값을 입력
+```
+
+### AI_BACKEND 별 사전 조건
+
+| 백엔드 | 조건 |
+|--------|------|
+| `anthropic_api` | `ANTHROPIC_API_KEY` 환경변수 필수 |
+| `claude_code_sdk` (기본값) | `claude-agent-sdk` Python 패키지 설치 + Claude.ai Pro/Max 로그인 유지 |
+
+#### claude-agent-sdk 설치 (claude_code_sdk 사용 시)
+
+```bash
+cd backend
+
+# venv 활성화 후 패키지 설치
+.venv\Scripts\activate        # Windows
+pip install claude-agent-sdk
+
+# 설치 확인
+python -c "from claude_agent_sdk import query; print('OK')"
+```
+
+Claude.ai 로그인 (최초 1회):
+```bash
+# npm으로 Claude Code CLI 설치 (claude-agent-sdk가 내부적으로 claude 바이너리를 사용)
+npm install -g @anthropic-ai/claude-code
+
+# Claude.ai 로그인
+claude
+# 대화형 로그인 프로세스를 따라 진행
 ```
 
 > SEC-006-01: `.env` 파일은 `.gitignore`에 등록되어야 하며 소스 코드에 하드코딩 금지

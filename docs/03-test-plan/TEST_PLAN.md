@@ -8,10 +8,10 @@
 
 ## 테스트 전략
 
-- **E2E 테스트**: Playwright — 13개 시나리오
-- **Integration 테스트**: pytest (백엔드 API) + Vitest (프론트엔드 스토어) — 7개 시나리오
-- **Security 테스트**: SEC-ID 기반 — 7개 시나리오
-- **Unit 테스트 (Developer 담당)**: UT-001-01 ~ UT-006-04 (아래 참조 섹션에 기록)
+- **E2E 테스트**: Playwright — 14개 시나리오
+- **Integration 테스트**: pytest (백엔드 API) + Vitest (프론트엔드 스토어) — 10개 시나리오
+- **Security 테스트**: SEC-ID 기반 — 13개 시나리오
+- **Unit 테스트 (Developer 담당)**: UT-001-01 ~ UT-007-16 (아래 참조 섹션에 기록)
 
 ---
 
@@ -49,6 +49,22 @@
 | UT-006-02 | REQ-006-02 | 파서 재활용 | `HWPOLEReader`, `HwpBodyParser` import 성공, 수정 없음 확인 | PASS (2026-04-01, 4/4) |
 | UT-006-03 | REQ-006-04 | `SessionStore` | 저장/조회/reset 정상 동작 | PASS (2026-04-01, 10/10) |
 | UT-006-04 | REQ-006-04 | 세션 연속성 | upload → generate → chat → download가 동일 session_id 사용 | PASS (2026-04-01, test_foundation.py + store.test.ts) |
+| UT-007-01 | REQ-007-01 | `get_ai_generate_service()` | `AI_BACKEND=anthropic_api` → `AiGenerateService` 인스턴스 반환 | (구현 후 업데이트) |
+| UT-007-02 | REQ-007-01 | `get_ai_generate_service()` | `AI_BACKEND=claude_code_sdk` → `AIGenerateServiceSDK` 인스턴스 반환 | (구현 후 업데이트) |
+| UT-007-03 | REQ-007-04 | `get_ai_generate_service()` | `AI_BACKEND` 미설정(기본값) → `AIGenerateServiceSDK` 인스턴스 반환 | (구현 후 업데이트) |
+| UT-007-04 | REQ-007-04 | `get_ai_generate_service()` | `AI_BACKEND=invalid_value` → `AIGenerateServiceSDK` 폴백 반환 (앱 크래시 없음) | (구현 후 업데이트) |
+| UT-007-05 | REQ-007-01 | `get_chat_service()` | `AI_BACKEND=anthropic_api` → `ChatService` 인스턴스 반환 | (구현 후 업데이트) |
+| UT-007-06 | REQ-007-01 | `get_chat_service()` | `AI_BACKEND=claude_code_sdk` → `ChatServiceSDK` 인스턴스 반환 | (구현 후 업데이트) |
+| UT-007-07 | REQ-007-02 | `AIGenerateServiceSDK.generate_stream()` | SDK mock 정상 응답 → `item` 이벤트 1건 이상 발행 | (구현 후 업데이트) |
+| UT-007-08 | REQ-007-04 | `AIGenerateServiceSDK.generate_stream()` | SSE `item` 이벤트 구조가 `AiGenerateService`와 동일한 JSON 키를 포함 | (구현 후 업데이트) |
+| UT-007-09 | REQ-007-02 | `AIGenerateServiceSDK.generate_stream()` | SDK 예외 발생 → `error` SSE 이벤트 발행 (앱 크래시 없음) | (구현 후 업데이트) |
+| UT-007-10 | REQ-007-02 | `AIGenerateServiceSDK.generate_stream()` | 원본 요구사항 없을 때 → `error` SSE 이벤트 발행 | (구현 후 업데이트) |
+| UT-007-11 | REQ-007-03 | `ChatServiceSDK.chat_stream()` | SDK mock 정상 응답 → `text` 이벤트 발행 | (구현 후 업데이트) |
+| UT-007-12 | REQ-007-03 | `ChatServiceSDK.chat_stream()` | SDK 응답에 PATCH 태그 포함 → `patch` 이벤트 발행 + state 업데이트 | (구현 후 업데이트) |
+| UT-007-13 | REQ-007-03 | `ChatServiceSDK.chat_stream()` | 메시지 2000자 초과 → `error` 이벤트 발행 (SEC-007-02 연계) | (구현 후 업데이트) |
+| UT-007-14 | REQ-007-04 | `ChatServiceSDK.chat_stream()` | SSE 이벤트 구조가 `ChatService`와 동일한 JSON 키를 포함 | (구현 후 업데이트) |
+| UT-007-15 | REQ-007-01 | `routers/generate.py` | 팩토리 반환 서비스의 `generate_stream()` 호출 여부 | (구현 후 업데이트) |
+| UT-007-16 | REQ-007-01 | `routers/chat.py` | 팩토리 반환 서비스의 `chat_stream()` 호출 여부 | (구현 후 업데이트) |
 
 ---
 
@@ -118,6 +134,19 @@
 
 ---
 
+### REQ-007: AI 백엔드 선택 옵션
+
+> 참고: `claude-agent-sdk`는 실제 Claude.ai 로그인 세션이 필요하다. UT-007-07 ~ UT-007-14(SDK 서비스 동작 테스트)는 `query()` 함수를 mock 처리하여 실행한다. TST-007-03(SDK 실제 호출 통합 테스트)은 SDK 설치 및 인증 환경에서만 실행하며, 미충족 시 Skip 처리한다.
+
+| TST-ID | REQ-ID | AC-ID | 테스트 유형 | 우선순위 | 시나리오 | 기대 결과 | 상태 | 증빙 |
+|--------|--------|-------|-----------|---------|---------|----------|------|------|
+| TST-007-01 | REQ-007-01, REQ-007-04 | AC-007-01, AC-007-04 | Integration | Critical | **Given** `AI_BACKEND=anthropic_api`로 환경변수가 설정되어 있다. **When** `get_ai_generate_service()`와 `get_chat_service()`를 각각 호출한다. **Then** 각각 `AiGenerateService` 인스턴스와 `ChatService` 인스턴스가 반환된다. **And** `AI_BACKEND=claude_code_sdk`로 변경 후 동일하게 호출하면 `AIGenerateServiceSDK`, `ChatServiceSDK` 인스턴스가 반환된다. **And** `AI_BACKEND` 미설정 또는 인식 불가 값일 때도 앱 크래시 없이 기본값(`claude_code_sdk` 경로) 인스턴스가 반환된다. | `anthropic_api` → 기존 서비스 클래스 반환. `claude_code_sdk` → SDK 서비스 클래스 반환. 미설정/잘못된 값 → 폴백 반환 (예외 없음) | 미실행 | |
+| TST-007-02 | REQ-007-02, REQ-007-03, REQ-007-04 | AC-007-04 | Integration | Critical | **Given** `query()` 함수가 mock 처리되어 있고 정상 응답(JSON 형식의 상세요구사항 텍스트)을 반환하도록 설정되어 있다. **When** `AIGenerateServiceSDK.generate_stream(session_id)`를 호출하여 SSE 이벤트를 전부 수집한다. **Then** 수집된 이벤트에 `{"type": "item", "data": {"id": "...", "parent_id": "...", "category": "...", "name": "...", "content": "...", "order_index": ..., "is_modified": false}}` 구조의 이벤트가 1건 이상 포함된다. **And** 마지막 이벤트는 `{"type": "done", "total": N}` 구조이다. **And** 동일 구성으로 `ChatServiceSDK.chat_stream()`을 호출하면 `{"type": "text", "delta": "..."}`, `{"type": "patch", ...}`, `{"type": "done"}` 이벤트 구조가 기존 `ChatService`와 동일하다. | generate SSE: `item` 이벤트 JSON 키 6종(`id`, `parent_id`, `category`, `name`, `content`, `order_index`) 모두 포함, `done` 이벤트에 `total` 필드 포함. chat SSE: `text`/`patch`/`done` 이벤트 구조 동일 | 미실행 | |
+| TST-007-03 | REQ-007-02, REQ-007-03 | AC-007-02, AC-007-03 | Integration | High | **Given** `claude-agent-sdk`가 설치되어 있고 `~/.claude/.credentials.json`에 유효한 Claude.ai 인증 정보가 존재한다. **And** `AI_BACKEND=claude_code_sdk`로 설정되어 있다. **When** `POST /api/v1/generate`에 유효한 `session_id`를 전달하여 SSE 스트림을 수신한다. **Then** `type: "item"` 이벤트가 1건 이상 수신되고, `type: "done"` 이벤트로 스트림이 종료된다. **And** 동일 session_id로 `POST /api/v1/chat`에 수정 지시를 전송하면 `type: "text"` 또는 `type: "patch"` 이벤트가 수신된다. | SDK 실제 호출 경로에서 generate/chat SSE 정상 수신. `type: "item"` 1건 이상 + `type: "done"` 수신 확인 | 미실행 | SDK 미설치 환경에서는 Skip |
+| TST-007-04 | REQ-007-04 | AC-007-04 | E2E | Critical | **Given** `AI_BACKEND=anthropic_api`로 설정되어 있고, 유효한 `ANTHROPIC_API_KEY`가 존재한다. **And** HWP 파싱이 완료되어 원본 요구사항 테이블이 화면에 표시되어 있다. **When** 사용자가 "상세요구사항 생성" 버튼을 클릭한다. **Then** SSE 스트림에서 `type: "item"` 이벤트가 수신되고 상세요구사항 테이블에 행이 추가된다. **And** `AI_BACKEND=claude_code_sdk`로 전환하여 동일하게 실행했을 때 프론트엔드 코드 변경 없이 동일한 화면 동작을 확인할 수 있다. | 두 백엔드 전환 시 프론트엔드 동작 동일. 테이블 행 추가 확인 | 미실행 | |
+
+---
+
 ### 보안 테스트 (SEC-ID 기반)
 
 | TST-ID | SEC-ID | REQ-ID | 테스트 유형 | 우선순위 | 시나리오 | 기대 결과 | 상태 | 증빙 |
@@ -129,6 +158,12 @@
 | TST-SEC-05 | SEC-004-01 | REQ-004-01 | Security | High | **Given** 공격자가 채팅 입력에 `<script>alert('XSS')</script>` 페이로드를 입력한다. **When** 채팅 메시지가 화면에 렌더링된다. **Then** React의 기본 이스케이프 처리로 스크립트가 실행되지 않고 텍스트로 표시된다. | `<script>` 태그가 이스케이프된 텍스트로 렌더링, alert 미실행 | ✅ Pass | 코드 리뷰 확인 — JSX 텍스트 표현식(`{msg.content}`) 사용, `dangerouslySetInnerHTML` 미사용 전수 확인 |
 | TST-SEC-06 | SEC-004-02 | REQ-004-01 | Security | High | **Given** 사용자가 채팅 입력창에 2001자 이상의 텍스트를 입력한다. **When** 전송을 시도한다. **Then** 클라이언트에서 2000자로 입력이 제한되고, 서버 측에서도 2000자 초과 메시지에 대해 400 응답을 반환한다. | 클라이언트: 전송 차단. 서버: 400 응답 | ✅ Pass | `chat-panel.test.tsx` — 2000자 초과 입력 시 슬라이스 확인. `test_chat.py::TestChatStreamApiError::test_no_detail_yields_error_event` — 서버 측 길이 검증 |
 | TST-SEC-07 | SEC-006-02 | REQ-006-01 | Security | Critical | **Given** CORS 미들웨어가 `allow_origins=["http://localhost:3000"]`으로 설정되어 있다. **When** `http://localhost:9999` (비허용 오리진)에서 API 요청을 시도한다. **Then** 브라우저가 CORS 정책으로 요청을 차단하고, 소스 코드에 와일드카드 `allow_origins=["*"]`가 없다. | 비허용 오리진 CORS 차단, 소스 코드에 와일드카드 `*` 없음 | ✅ Pass | `backend/app/main.py:21` — `allow_origins=["http://localhost:3000"]` 확인. 소스 코드 전체 와일드카드 `*` 없음 확인 |
+| TST-SEC-08 | SEC-007-01 | REQ-007-01 | Security | Critical | **Given** `claude-agent-sdk` 패키지가 설치되지 않은 환경에서 `AI_BACKEND=claude_code_sdk`로 설정되어 있다. **When** `POST /api/v1/generate`를 호출한다. **Then** 서버가 HTTP 503 응답을 반환하고, 응답 바디에 Python 스택트레이스 또는 `ImportError` 내부 메시지가 포함되지 않는다. | HTTP 503 반환, 응답 바디에 스택트레이스 미포함 | 미실행 | |
+| TST-SEC-09 | SEC-007-02 | REQ-007-03 | Security | Critical | **Given** `AI_BACKEND=claude_code_sdk`로 설정되어 있고 `query()` 함수가 mock 처리되어 있다. **When** `POST /api/v1/chat`에 2001자 이상의 메시지를 전송한다. **Then** `ChatServiceSDK`가 `MAX_MESSAGE_LENGTH` 검증을 수행하여 `{"type": "error", "message": "..."}` SSE 이벤트를 발행하고, 서버는 2001자 입력을 SDK에 전달하지 않는다. | 2001자 입력 → error SSE 이벤트 발행, SDK `query()` 미호출 | 미실행 | |
+| TST-SEC-10 | SEC-007-03 | REQ-007-01 | Security | High | **Given** `AI_BACKEND=invalid_value` 등 잘못된 값으로 설정되어 있다. **When** `GET /api/v1/generate` 또는 기타 엔드포인트를 호출한다. **Then** 서버 응답 바디 및 응답 헤더 어디에도 `AI_BACKEND` 환경변수 값, 현재 활성 백엔드 유형, 폴백 경고 메시지가 포함되지 않는다. **And** 서버 측 로그에는 경고가 기록된다. | 클라이언트 응답에 백엔드 유형 미노출. 서버 로그에만 경고 기록 | 미실행 | |
+| TST-SEC-11 | SEC-007-04 | REQ-007-02 | Security | High | **Given** 백엔드 서버의 웹 루트 경로가 설정되어 있다. **When** `GET /../../../.claude/.credentials.json` 또는 유사한 경로 순회 패턴으로 자격증명 파일 접근을 시도한다. **Then** 서버가 404 또는 403을 반환하고, 자격증명 파일 내용이 응답에 포함되지 않는다. **And** 소스 코드에서 `~/.claude/` 경로가 웹 루트를 통해 접근 가능하도록 노출하는 정적 파일 서빙 설정이 없음을 확인한다. | 404 또는 403 반환. 자격증명 파일 내용 미노출. 정적 경로 노출 설정 없음 | 미실행 | |
+| TST-SEC-12 | SEC-007-05 | REQ-007-02 | Security | High | **Given** `AI_BACKEND=claude_code_sdk`로 설정되어 있고 `query()` 함수가 mock 처리되어 있다. **And** 원본 요구사항 content 필드에 프롬프트 인젝션 페이로드(`", "injected": "val`)가 포함되어 있다. **When** `AIGenerateServiceSDK.generate_stream()`이 프롬프트를 조립하여 `query()`에 전달한다. **Then** `query()` mock에 전달된 `prompt` 인자에서 원본 요구사항 content가 `json.dumps`를 통해 이스케이프된 문자열로 포함되어 있고, raw 삽입되지 않는다. | `query()` 호출 시 `prompt` 인자에 JSON 이스케이프된 content 포함 확인 | 미실행 | |
+| TST-SEC-13 | SEC-007-06 | REQ-007-02, REQ-007-03 | Security | Medium | **Given** `AI_BACKEND=claude_code_sdk`로 설정되어 있고 `query()` 함수가 mock 처리되어 있다. **When** 동시에 5건의 `POST /api/v1/generate` 요청을 전송한다. **Then** 서버가 동시 SDK 호출 수를 세마포어 또는 큐로 제한하여 요청이 순차 또는 제한된 병렬 수로 처리된다. **And** 서버 프로세스가 크래시되지 않는다. | 동시 요청 5건 처리 시 서버 안정 유지. 세마포어/큐 제한 로직 소스 코드 확인 | 미실행 | 로컬 단일 사용자 환경에서는 낮은 위험 — 소스 코드 확인으로 대체 가능 |
 
 ---
 
@@ -142,4 +177,5 @@
 | REQ-004 | 3 | 2 (TST-SEC-05, TST-SEC-06) | 5 |
 | REQ-005 | 3 | 0 | 5 |
 | REQ-006 | 4 | 1 (TST-SEC-07) | 4 |
-| **합계** | **22** | **7** | **28** |
+| REQ-007 | 4 | 6 (TST-SEC-08 ~ TST-SEC-13) | 16 |
+| **합계** | **26** | **13** | **44** |

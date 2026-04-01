@@ -228,10 +228,10 @@
 
 | ID | 요구사항 | 우선순위 | 상태 | AC 참조 |
 |----|---------|---------|------|--------|
-| REQ-007-01 | 설정에서 AI 백엔드를 선택할 수 있다 (`anthropic_api` / `claude_code_sdk`) | Must | 미구현 | AC-007-01 |
-| REQ-007-02 | `claude_code_sdk` 선택 시 Claude Code CLI(`claude` 명령)를 subprocess로 호출하여 상세요구사항을 생성한다 | Must | 미구현 | AC-007-02 |
-| REQ-007-03 | `claude_code_sdk` 선택 시 채팅 기능도 Claude Code CLI로 처리한다 | Must | 미구현 | AC-007-03 |
-| REQ-007-04 | 선택된 백엔드는 환경변수 또는 설정 파일로 관리한다 | Must | 미구현 | AC-007-04 |
+| REQ-007-01 | 설정에서 AI 백엔드를 선택할 수 있다 (`anthropic_api` / `claude_code_sdk`) | Must | 구현완료 | AC-007-01 |
+| REQ-007-02 | `claude_code_sdk` 선택 시 `claude-agent-sdk` 패키지의 `query()` API를 사용하여 상세요구사항을 생성한다 | Must | 구현완료 | AC-007-02 |
+| REQ-007-03 | `claude_code_sdk` 선택 시 채팅 기능도 `claude-agent-sdk`의 `query()` API로 처리한다 | Must | 구현완료 | AC-007-03 |
+| REQ-007-04 | 선택된 백엔드는 환경변수 또는 설정 파일로 관리한다 | Must | 구현완료 | AC-007-04 |
 
 #### AC-007-01: AI 백엔드 설정 변경
 
@@ -241,15 +241,15 @@
 
 #### AC-007-02: claude_code_sdk — 상세요구사항 생성
 
-- **Given**: AI 백엔드가 `claude_code_sdk`로 설정되어 있고, `ANTHROPIC_API_KEY`가 환경에 존재하지 않는다
+- **Given**: AI 백엔드가 `claude_code_sdk`로 설정되어 있다
 - **When**: 사용자가 "상세요구사항 생성" 버튼을 클릭한다
-- **Then**: 서버가 `claude` CLI를 subprocess로 호출하여 상세요구사항을 생성하고, 결과가 화면에 정상 표시된다
+- **Then**: 서버가 `claude-agent-sdk`의 `query()` API를 호출하여 상세요구사항을 생성하고, 결과가 화면에 정상 표시된다
 
 #### AC-007-03: claude_code_sdk — 채팅 수정
 
-- **Given**: AI 백엔드가 `claude_code_sdk`로 설정되어 있고, `ANTHROPIC_API_KEY`가 환경에 존재하지 않는다
+- **Given**: AI 백엔드가 `claude_code_sdk`로 설정되어 있다
 - **When**: 사용자가 채팅 입력창에 수정 지시를 입력하고 전송한다
-- **Then**: 서버가 `claude` CLI를 subprocess로 호출하여 수정 결과를 생성하고, 테이블이 정상 업데이트된다
+- **Then**: 서버가 `claude-agent-sdk`의 `query()` API를 호출하여 수정 결과를 생성하고, 테이블이 정상 업데이트된다
 
 #### AC-007-04: SSE 스트림 인터페이스 일관성
 

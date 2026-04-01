@@ -2,24 +2,22 @@
   "project": "REQ",
   "vulcan_src": "C:\\Users\\user\\Documents\\antig-workspace\\Vulcan-Claude-Anvil",
   "vulcan_version": "1.0.0",
-  "current_gate": "gate5",
+  "current_gate": "gate2",
   "gate_status": {
     "gate1": "done",
-    "gate2": "done",
-    "gate3": "done",
-    "impl": "done",
-    "gate4": "done",
+    "gate2": "pending",
+    "gate3": "pending",
+    "impl": "pending",
+    "gate4": "pending",
     "gate5": "pending"
   },
   "feature": "HWP 제안요구사항 → 상세요구사항 자동생성 도구",
   "started": "2026-04-01",
   "completed": [
-    "Gate 1 요구사항 - HWP 제안요구사항 → 상세요구사항 자동생성 도구",
-    "Gate 2 설계 - HWP 제안요구사항 → 상세요구사항 자동생성 도구",
-    "Gate 3 테스트 플랜 - HWP 제안요구사항 → 상세요구사항 자동생성 도구",
-    "구현 - HWP 제안요구사항 → 상세요구사항 자동생성 도구",
-    "Gate 4 QA 검토 - HWP 제안요구사항 → 상세요구사항 자동생성 도구"
+    "Gate 1 요구사항 - HWP 제안요구사항 → 상세요구사항 자동생성 도구"
   ],
   "pending": [],
-  "blocked": []
+  "blocked": [
+    "[rollback to gate2] 요구사항 추가"
+  ]
 }

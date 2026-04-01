@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HWP 상세요구사항 자동생성 도구 — 프로토타입</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 커스텀 디자인 토큰 */
+    :root {
+      --color-primary: #2563EB;
+      --color-primary-hover: #1D4ED8;
+      --color-primary-light: #EFF6FF;
+      --color-row-original: #FFFFFF;
+      --color-row-original-header: #F8FAFC;
+      --color-row-detail: #F0F9FF;
+      --color-row-detail-header: #E0F2FE;
+      --color-highlight: #FEF9C3;
+    }
+
+    /* Tailwind config 확장 */
+    body { font-family: 'Pretendard', 'Inter', system-ui, sans-serif; }
+
+    /* 드롭존 드래그 오버 상태 */
+    .dropzone-active {
+      border-color: #2563EB !important;
+      background-color: #EFF6FF !important;
+    }
+
+    /* 행 하이라이트 애니메이션 */
+    @keyframes rowHighlight {
+      0%, 100% { background-color: transparent; }
+      10%, 90% { background-color: #FEF9C3; }
+    }
+    .row-highlight-anim {
+      animation: rowHighlight 3s ease-in-out forwards;
+    }
+
+    /* 테이블 셀 편집 가능 힌트 */
+    .editable-cell:hover {
+      background-color: #EFF6FF;
+      cursor: text;
+    }
+    .editable-cell:hover::after {
+      content: ' ✎';
+      color: #2563EB;
+      font-size: 11px;
+    }
+
+    /* 채팅 메시지 스트리밍 커서 */
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .streaming-cursor::after {
+      content: '|';
+      animation: blink 1s infinite;
+      color: #2563EB;
+    }
+
+    /* 진행 바 애니메이션 */
+    @keyframes progressPulse {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+    .progress-bar-anim {
+      animation: progressPulse 4s ease-in-out forwards;
+    }
+
+    /* 스크롤바 스타일 */
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #F1F5F9; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+
+    /* 스티키 컬럼 */
+    .sticky-col { position: sticky; left: 0; z-index: 1; }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'row-original': '#FFFFFF',
+            'row-original-hd': '#F8FAFC',
+            'row-detail': '#F0F9FF',
+            'row-detail-hd': '#E0F2FE',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<!-- ============================
+     앱 상태 관리 (JavaScript)
+     ============================ -->
+<script>
+  // 앱 상태
+  const AppState = {
+    stage: 'upload',       // 'upload' | 'parsed' | 'generating' | 'generated'
+    sessionId: null,
+    originalReqs: [],
+    detailReqs: [],
+    chatHistory: [],
+    isUploading: false,
+    isGenerating: false,
+    isChatting: false,
+    error: null,
+    selectedFile: null,
+    generateProgress: 0,
+    generateTotal: 0,
+  };
+
+  // 더미 데이터 — 원본 요구사항
+  const DUMMY_ORIGINAL = [
+    { id: 'REQ-001', category: '기능', name: '사용자 인증', content: '시스템 사용자는 아이디와 패스워드를 이용하여 로그인할 수 있어야 하며, 인증에 실패한 경우 오류 메시지를 표시한다.' },
+    { id: 'REQ-002', category: '기능', name: 'HWP 파일 업로드', content: '사용자는 HWP 형식의 제안요구서 파일을 웹 화면에서 업로드할 수 있어야 한다. 파일 크기는 최대 50MB로 제한한다.' },
+    { id: 'REQ-003', category: '기능', name: '요구사항 파싱', content: '업로드된 HWP 파일에서 요구사항 ID, 분류, 명칭, 내용을 자동으로 추출하여 테이블 형태로 표시한다.' },
+    { id: 'REQ-004', category: '기능', name: 'AI 상세요구사항 생성', content: '추출된 원본 요구사항을 Claude AI에 전달하여 각 요구사항에 대한 세부 상세요구사항을 자동 생성한다.' },
+    { id: 'REQ-005', category: '기능', name: '채팅 기반 수정', content: '사용자는 채팅 인터페이스를 통해 AI에게 상세요구사항의 수정을 요청할 수 있다.' },
+    { id: 'REQ-006', category: '기능', name: '엑셀 다운로드', content: '파싱된 원본 요구사항(1단계)과 AI가 생성한 상세요구사항(2단계)을 각각 엑셀 파일로 다운로드할 수 있다.' },
+    { id: 'REQ-007', category: '비기능', name: '응답 시간', content: 'HWP 파싱 응답 시간은 30초 이내여야 하며, AI 생성은 5분 이내에 완료되어야 한다.' },
+    { id: 'REQ-008', category: '비기능', name: '보안', content: '업로드된 파일은 처리 완료 후 서버에서 즉시 삭제되어야 하며, 개인정보가 서버에 저장되지 않아야 한다.' },
+  ];
+
+  // 더미 데이터 — 상세요구사항
+  const DUMMY_DETAIL = [
+    { id: 'REQ-001-01', parent_id: 'REQ-001', category: '기능', name: '로그인 폼 제공', content: '아이디(이메일 형식)와 패스워드 입력 필드, 로그인 버튼으로 구성된 로그인 폼을 제공한다.' },
+    { id: 'REQ-001-02', parent_id: 'REQ-001', category: '기능', name: '인증 실패 처리', content: '로그인 실패 시 "아이디 또는 패스워드가 올바르지 않습니다" 오류 메시지를 표시하고, 5회 연속 실패 시 계정을 일시 잠금한다.' },
+    { id: 'REQ-001-03', parent_id: 'REQ-001', category: '보안', name: '세션 관리', content: '로그인 성공 시 세션 토큰을 발급하고, 세션 만료 시간은 8시간으로 설정한다.' },
+    { id: 'REQ-002-01', parent_id: 'REQ-002', category: '기능', name: '파일 선택 UI', content: '파일 선택 다이얼로그 및 드래그앤드롭 방식으로 HWP 파일을 선택할 수 있다.' },
+    { id: 'REQ-002-02', parent_id: 'REQ-002', category: '기능', name: '파일 형식 검증', content: '업로드 전 클라이언트에서 .hwp 확장자 여부를 확인하고, 서버에서도 OLE2 포맷 검증을 수행한다.' },
+    { id: 'REQ-002-03', parent_id: 'REQ-002', category: '기능', name: '업로드 진행 표시', content: '파일 업로드 중 진행률 표시(로딩 인디케이터)를 제공하여 사용자가 처리 중임을 인지할 수 있게 한다.' },
+    { id: 'REQ-003-01', parent_id: 'REQ-003', category: '기능', name: 'OLE 파싱', content: 'HWP OLE2 컨테이너에서 BodyText 스트림 바이너리를 추출하는 기능을 구현한다.' },
+    { id: 'REQ-003-02', parent_id: 'REQ-003', category: '기능', name: '요구사항 테이블 인식', content: '파싱된 표 구조에서 요구사항 ID, 분류, 명칭, 내용 4개 컬럼을 자동으로 인식하여 매핑한다.' },
+    { id: 'REQ-004-01', parent_id: 'REQ-004', category: '기능', name: 'AI 생성 요청', content: '상세요구사항 생성 버튼 클릭 시 원본 요구사항 데이터를 Claude API에 전송한다.' },
+    { id: 'REQ-004-02', parent_id: 'REQ-004', category: '기능', name: 'SSE 스트리밍 수신', content: 'Server-Sent Events 방식으로 AI 생성 결과를 실시간으로 수신하여 테이블에 행을 동적으로 추가한다.' },
+    { id: 'REQ-005-01', parent_id: 'REQ-005', category: '기능', name: '채팅 인터페이스', content: '텍스트 입력 필드와 전송 버튼으로 구성된 채팅 인터페이스를 화면 우측 또는 하단에 배치한다.' },
+    { id: 'REQ-005-02', parent_id: 'REQ-005', category: '기능', name: '수정 결과 반영', content: 'AI가 채팅을 통해 수정안을 응답하면 해당 테이블 행을 즉시 업데이트하고 변경된 행을 시각적으로 강조한다.' },
+  ];
+
+  // 더미 채팅 메시지
+  const DUMMY_CHAT = [
+    { role: 'user', content: 'REQ-001-02의 패스워드 잠금 횟수를 5회에서 3회로 변경해주세요.' },
+    { role: 'assistant', content: 'REQ-001-02의 계정 잠금 조건을 5회에서 3회로 수정했습니다.\n\n변경된 내용: "3회 연속 실패 시 계정을 일시 잠금한다."로 업데이트되었습니다.' },
+  ];
+
+  // 상태 업데이트 함수
+  function setState(updates) {
+    Object.assign(AppState, updates);
+    render();
+  }
+
+  // 렌더링
+  function render() {
+    document.getElementById('screen-upload').classList.toggle('hidden', AppState.stage !== 'upload');
+    document.getElementById('screen-parsed').classList.toggle('hidden',
+      AppState.stage !== 'parsed' && AppState.stage !== 'generating' && AppState.stage !== 'generated');
+    document.getElementById('screen-chat-panel').classList.toggle('hidden', AppState.stage !== 'generated');
+
+    // 에러 표시
+    const errBanner = document.getElementById('upload-error');
+    if (errBanner) {
+      errBanner.classList.toggle('hidden', !AppState.error);
+      if (AppState.error) errBanner.querySelector('.error-msg').textContent = AppState.error;
+    }
+
+    // 다운로드 버튼 상태
+    const dl1 = document.getElementById('btn-download-1');
+    const dl2 = document.getElementById('btn-download-2');
+    if (dl1) {
+      const has = AppState.originalReqs.length > 0;
+      dl1.disabled = !has;
+      dl1.classList.toggle('opacity-40', !has);
+      dl1.classList.toggle('cursor-not-allowed', !has);
+    }
+    if (dl2) {
+      const has = AppState.detailReqs.length > 0;
+      dl2.disabled = !has;
+      dl2.classList.toggle('opacity-40', !has);
+      dl2.classList.toggle('cursor-not-allowed', !has);
+    }
+
+    // 생성 버튼 상태
+    const genBtn = document.getElementById('btn-generate');
+    if (genBtn) {
+      if (AppState.isGenerating) {
+        genBtn.innerHTML = `<span class="flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"/></svg> 생성 중... <span id="gen-counter">(0/${AppState.generateTotal || '?'})</span></span>`;
+        genBtn.disabled = true;
+        genBtn.classList.add('opacity-80');
+      } else if (AppState.stage === 'generated') {
+        genBtn.innerHTML = '✓ 생성 완료';
+        genBtn.disabled = true;
+        genBtn.classList.add('opacity-60');
+      } else {
+        genBtn.innerHTML = '✨ 상세요구사항 생성';
+        genBtn.disabled = false;
+        genBtn.classList.remove('opacity-80');
+      }
+    }
+
+    // 채팅 입력 상태
+    const chatInput = document.getElementById('chat-input');
+    const chatSend = document.getElementById('chat-send');
+    if (chatInput && chatSend) {
+      const disabled = AppState.isChatting || AppState.stage !== 'generated';
+      chatInput.disabled = disabled;
+      chatSend.disabled = disabled;
+      chatInput.classList.toggle('opacity-50', disabled);
+    }
+
+    // 원본 요구사항 행 수 표시
+    const reqCount = document.getElementById('req-count');
+    if (reqCount) reqCount.textContent = `${AppState.originalReqs.length}개 항목 추출됨`;
+  }
+</script>
+
+<!-- ============================
+     헤더
+     ============================ -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+  <div class="max-w-[1400px] mx-auto px-4 h-14 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </div>
+      <span class="font-semibold text-slate-800 text-base">HWP 상세요구사항 자동생성</span>
+      <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Prototype</span>
+    </div>
+    <button
+      id="btn-new-upload"
+      onclick="handleNewUpload()"
+      class="hidden text-sm text-slate-600 hover:text-blue-600 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+      </svg>
+      새 파일 업로드
+    </button>
+  </div>
+</header>
+
+<!-- ============================
+     화면 1: 업로드
+     ============================ -->
+<div id="screen-upload" class="flex items-center justify-center min-h-[calc(100vh-56px)] px-4 py-12">
+  <div class="w-full max-w-lg">
+    <!-- 타이틀 -->
+    <div class="text-center mb-8">
+      <h1 class="text-2xl font-bold text-slate-800 mb-2">HWP 파일을 업로드하세요</h1>
+      <p class="text-slate-500 text-sm leading-relaxed">
+        제안요구서(RFP) HWP 파일을 업로드하면<br />
+        AI가 상세요구사항을 자동 생성합니다.
+      </p>
+    </div>
+
+    <!-- 업로드 카드 -->
+    <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-6">
+      <!-- 드롭존 -->
+      <div
+        id="dropzone"
+        class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer transition-all duration-150 hover:border-blue-400 hover:bg-blue-50"
+        ondragover="handleDragOver(event)"
+        ondragleave="handleDragLeave(event)"
+        ondrop="handleDrop(event)"
+        onclick="document.getElementById('file-input').click()"
+        role="button"
+        tabindex="0"
+        aria-label="HWP 파일 업로드 영역. 클릭하거나 파일을 끌어다 놓으세요"
+        onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('file-input').click()"
+      >
+        <div id="dropzone-content-default">
+          <div class="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+          </div>
+          <p class="text-slate-700 font-medium mb-1">파일을 여기에 끌어다 놓거나<br />클릭하여 선택하세요</p>
+          <p class="text-slate-400 text-xs mt-2">.hwp 파일만 지원합니다</p>
+        </div>
+        <!-- 파일 선택됨 상태 -->
+        <div id="dropzone-content-selected" class="hidden">
+          <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p class="font-medium text-slate-700 mb-1" id="selected-filename">파일명.hwp</p>
+          <p class="text-slate-400 text-xs">다른 파일을 선택하려면 클릭하세요</p>
+        </div>
+        <input id="file-input" type="file" accept=".hwp" class="hidden" onchange="handleFileSelect(event)" />
+      </div>
+
+      <!-- 에러 배너 -->
+      <div id="upload-error" class="hidden mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2" role="alert">
+        <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+        <p class="error-msg text-sm text-red-700"></p>
+      </div>
+
+      <!-- 업로드 버튼 -->
+      <button
+        id="btn-upload"
+        onclick="handleUpload()"
+        disabled
+        class="mt-4 w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        aria-label="HWP 파일 업로드 시작"
+      >
+        <span id="btn-upload-content">
+          <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          업로드 시작
+        </span>
+      </button>
+
+      <!-- 안내 -->
+      <p class="text-center text-xs text-slate-400 mt-3">
+        업로드된 파일은 처리 후 즉시 서버에서 삭제됩니다
+      </p>
+    </div>
+
+    <!-- 사용 흐름 안내 -->
+    <div class="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">
+      <span class="flex items-center gap-1">
+        <span class="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+        HWP 업로드
+      </span>
+      <span class="text-slate-300">──</span>
+      <span class="flex items-center gap-1">
+        <span class="w-5 h-5 bg-slate-300 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+        요구사항 파싱
+      </span>
+      <span class="text-slate-300">──</span>
+      <span class="flex items-center gap-1">
+        <span class="w-5 h-5 bg-slate-300 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+        AI 생성 & 편집
+      </span>
+      <span class="text-slate-300">──</span>
+      <span class="flex items-center gap-1">
+        <span class="w-5 h-5 bg-slate-300 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+        다운로드
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     화면 2/3: 테이블 + 채팅
+     ============================ -->
+<div id="screen-parsed" class="hidden max-w-[1400px] mx-auto px-4 py-4">
+
+  <!-- 상단 액션 바 -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4 flex items-center justify-between flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- 파싱 완료 배지 -->
+      <span class="flex items-center gap-1.5 text-sm text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        파싱 완료
+      </span>
+      <span id="req-count" class="text-sm text-slate-500">0개 항목 추출됨</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <!-- 1단계 다운로드 -->
+      <button
+        id="btn-download-1"
+        onclick="handleDownload(1)"
+        disabled
+        class="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-slate-400"
+        title="원본 요구사항 엑셀 다운로드 (파싱 완료 후 활성화)"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        1단계 다운로드
+      </button>
+      <!-- 2단계 다운로드 -->
+      <button
+        id="btn-download-2"
+        onclick="handleDownload(2)"
+        disabled
+        class="flex items-center gap-1.5 px-3 py-2 text-sm text-blue-600 bg-blue-50 border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400 font-medium"
+        title="상세요구사항 포함 엑셀 다운로드 (AI 생성 완료 후 활성화)"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        2단계 다운로드
+      </button>
+      <!-- 상세요구사항 생성 버튼 -->
+      <button
+        id="btn-generate"
+        onclick="handleGenerate()"
+        class="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 font-medium disabled:cursor-not-allowed"
+      >
+        ✨ 상세요구사항 생성
+      </button>
+    </div>
+  </div>
+
+  <!-- AI 생성 진행 표시 (조건부) -->
+  <div id="progress-bar-container" class="hidden bg-white rounded-xl border border-blue-200 shadow-sm p-4 mb-4">
+    <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center gap-2">
+        <svg class="animate-spin h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+          <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"/>
+        </svg>
+        <span class="text-sm font-medium text-blue-700">AI 상세요구사항 생성 중...</span>
+      </div>
+      <span id="progress-text" class="text-sm text-blue-500">0 / ? 항목</span>
+    </div>
+    <div class="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+      <div id="progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <!-- 메인 레이아웃: 테이블 + 채팅 -->
+  <div class="flex gap-4 items-start">
+
+    <!-- 테이블 영역 -->
+    <div class="flex-1 min-w-0 space-y-4">
+
+      <!-- 원본 요구사항 섹션 -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-1 h-4 bg-slate-400 rounded-full"></div>
+            <h2 class="text-sm font-semibold text-slate-700">원본 요구사항</h2>
+            <span class="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">읽기 전용</span>
+          </div>
+          <span id="original-count" class="text-xs text-slate-400"></span>
+        </div>
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-sm" aria-label="원본 요구사항 테이블">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200">
+                <th class="sticky left-0 bg-slate-50 text-left px-3 py-2.5 font-semibold text-slate-600 text-xs uppercase tracking-wide w-28 border-r border-slate-100" scope="col">ID</th>
+                <th class="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs uppercase tracking-wide w-24 border-r border-slate-100" scope="col">분류</th>
+                <th class="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs uppercase tracking-wide w-40 border-r border-slate-100" scope="col">명칭</th>
+                <th class="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs uppercase tracking-wide" scope="col">내용</th>
+              </tr>
+            </thead>
+            <tbody id="original-tbody">
+              <!-- 동적 삽입 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 상세요구사항 섹션 -->
+      <div id="detail-section" class="hidden bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 bg-sky-50 border-b border-blue-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-1 h-4 bg-blue-500 rounded-full"></div>
+            <h2 class="text-sm font-semibold text-blue-700">상세요구사항</h2>
+            <span class="text-xs text-blue-500 bg-blue-100 px-1.5 py-0.5 rounded">AI 생성 • 셀 클릭으로 편집</span>
+          </div>
+          <span id="detail-count" class="text-xs text-blue-400"></span>
+        </div>
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-sm" aria-label="상세요구사항 테이블">
+            <thead>
+              <tr class="bg-sky-50 border-b border-blue-200">
+                <th class="sticky left-0 bg-sky-50 text-left px-3 py-2.5 font-semibold text-blue-600 text-xs uppercase tracking-wide w-28 border-r border-blue-100" scope="col">ID</th>
+                <th class="text-left px-3 py-2.5 font-semibold text-blue-600 text-xs uppercase tracking-wide w-24 border-r border-blue-100" scope="col">분류</th>
+                <th class="text-left px-3 py-2.5 font-semibold text-blue-600 text-xs uppercase tracking-wide w-40 border-r border-blue-100" scope="col">명칭</th>
+                <th class="text-left px-3 py-2.5 font-semibold text-blue-600 text-xs uppercase tracking-wide" scope="col">내용</th>
+              </tr>
+            </thead>
+            <tbody id="detail-tbody">
+              <!-- 동적 삽입 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /테이블 영역 -->
+
+    <!-- 채팅 패널 (화면 3에서만 표시) -->
+    <div id="screen-chat-panel" class="hidden w-80 flex-shrink-0 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col" style="height: calc(100vh - 120px); position: sticky; top: 72px;">
+
+      <!-- 채팅 헤더 -->
+      <div class="px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+        <div class="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-700">AI 수정 요청</h3>
+          <p class="text-xs text-slate-400">채팅으로 요구사항 수정</p>
+        </div>
+      </div>
+
+      <!-- 채팅 메시지 목록 -->
+      <div
+        id="chat-messages"
+        class="flex-1 overflow-y-auto custom-scroll p-3 space-y-3"
+        aria-live="polite"
+        aria-label="채팅 대화 내역"
+      >
+        <!-- 시스템 안내 메시지 -->
+        <div class="text-center">
+          <p class="text-xs text-slate-400 bg-slate-50 inline-block px-2 py-1 rounded-full">
+            상세요구사항 생성이 완료되었습니다. AI에게 수정을 요청하세요.
+          </p>
+        </div>
+        <!-- 채팅 메시지는 JS로 동적 삽입 -->
+      </div>
+
+      <!-- 채팅 입력 -->
+      <div class="p-3 border-t border-slate-200">
+        <div class="flex gap-2">
+          <textarea
+            id="chat-input"
+            placeholder="수정 요청을 입력하세요... (예: REQ-001-02의 잠금 횟수를 3회로 변경해주세요)"
+            rows="2"
+            class="flex-1 text-sm px-3 py-2 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 disabled:opacity-50 disabled:bg-slate-50"
+            onkeydown="handleChatKeydown(event)"
+          ></textarea>
+          <button
+            id="chat-send"
+            onclick="handleChatSend()"
+            class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 self-end disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="채팅 메시지 전송"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+        </div>
+        <p class="text-xs text-slate-400 mt-1.5">Enter로 전송, Shift+Enter로 줄바꿈</p>
+      </div>
+    </div><!-- /채팅 패널 -->
+
+  </div><!-- /메인 레이아웃 -->
+</div><!-- /screen-parsed -->
+
+
+<!-- ============================
+     다운로드 알림 토스트
+     ============================ -->
+<div id="toast" class="hidden fixed bottom-6 right-6 bg-slate-800 text-white text-sm px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 z-50 transition-all">
+  <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+  <span id="toast-msg">다운로드가 시작되었습니다</span>
+</div>
+
+
+<!-- ============================
+     JavaScript 인터랙션 로직
+     ============================ -->
+<script>
+  // ─── 업로드 화면 핸들러 ───────────────────────────
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.add('dropzone-active');
+  }
+
+  function handleDragLeave(e) {
+    document.getElementById('dropzone').classList.remove('dropzone-active');
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.remove('dropzone-active');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) processFileSelection(files[0]);
+  }
+
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) processFileSelection(file);
+  }
+
+  function processFileSelection(file) {
+    // 확장자 검증
+    if (!file.name.toLowerCase().endsWith('.hwp')) {
+      setState({ error: '지원하지 않는 파일 형식입니다. .hwp 파일만 업로드할 수 있습니다.' });
+      return;
+    }
+    setState({ error: null, selectedFile: file });
+
+    // 드롭존 UI 전환
+    document.getElementById('dropzone-content-default').classList.add('hidden');
+    document.getElementById('dropzone-content-selected').classList.remove('hidden');
+    document.getElementById('selected-filename').textContent = file.name;
+
+    // 업로드 버튼 활성화
+    document.getElementById('btn-upload').disabled = false;
+  }
+
+  function handleUpload() {
+    if (!AppState.selectedFile) return;
+
+    // 업로드 중 UI
+    const btn = document.getElementById('btn-upload');
+    btn.disabled = true;
+    btn.innerHTML = `
+      <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+        <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"/>
+      </svg>
+      업로드 중...
+    `;
+    setState({ isUploading: true, error: null });
+
+    // 더미 업로드 시뮬레이션 (1.5초 후 파싱 완료)
+    setTimeout(() => {
+      AppState.originalReqs = DUMMY_ORIGINAL;
+      AppState.sessionId = 'session-' + Date.now();
+      AppState.stage = 'parsed';
+      AppState.isUploading = false;
+
+      // 화면 전환
+      document.getElementById('screen-upload').classList.add('hidden');
+      document.getElementById('screen-parsed').classList.remove('hidden');
+      document.getElementById('btn-new-upload').classList.remove('hidden');
+
+      // 원본 테이블 렌더
+      renderOriginalTable(AppState.originalReqs);
+      render();
+    }, 1500);
+  }
+
+  // ─── 테이블 렌더링 ────────────────────────────────
+
+  function renderOriginalTable(rows) {
+    const tbody = document.getElementById('original-tbody');
+    tbody.innerHTML = '';
+    rows.forEach((row, idx) => {
+      const tr = document.createElement('tr');
+      tr.className = (idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50') + ' border-b border-slate-100 hover:bg-slate-50 transition-colors';
+      tr.innerHTML = `
+        <td class="sticky-col ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} px-3 py-2.5 font-mono text-xs font-medium text-slate-600 border-r border-slate-100 w-28">${escHtml(row.id)}</td>
+        <td class="px-3 py-2.5 text-xs border-r border-slate-100">
+          <span class="inline-block px-2 py-0.5 rounded-full text-xs ${row.category === '기능' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}">${escHtml(row.category)}</span>
+        </td>
+        <td class="px-3 py-2.5 text-xs font-medium text-slate-700 border-r border-slate-100 w-40">${escHtml(row.name)}</td>
+        <td class="px-3 py-2.5 text-xs text-slate-600 leading-relaxed">${escHtml(row.content)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('original-count').textContent = `${rows.length}개`;
+  }
+
+  function appendDetailRow(row, highlight = false) {
+    const tbody = document.getElementById('detail-tbody');
+    const section = document.getElementById('detail-section');
+    section.classList.remove('hidden');
+
+    const tr = document.createElement('tr');
+    tr.id = 'detail-row-' + row.id;
+    tr.className = 'border-b border-blue-100 hover:bg-sky-100/40 transition-colors cursor-pointer' + (highlight ? ' row-highlight-anim' : '');
+    tr.style.backgroundColor = '#F0F9FF';
+    tr.innerHTML = `
+      <td class="sticky-col px-3 py-2.5 font-mono text-xs font-medium text-blue-600 border-r border-blue-100 w-28" style="background-color:#E0F2FE">${escHtml(row.id)}</td>
+      <td class="px-3 py-2.5 text-xs border-r border-blue-100">
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs ${getCategoryBadge(row.category)}">${escHtml(row.category)}</span>
+      </td>
+      <td class="px-3 py-2.5 text-xs font-medium text-slate-700 border-r border-blue-100 w-40 editable-cell" onclick="startEdit('${row.id}', 'name', this)">${escHtml(row.name)}</td>
+      <td class="px-3 py-2.5 text-xs text-slate-600 leading-relaxed editable-cell" onclick="startEdit('${row.id}', 'content', this)">${escHtml(row.content)}</td>
+    `;
+    tbody.appendChild(tr);
+
+    const detailCount = document.getElementById('detail-count');
+    detailCount.textContent = `${tbody.children.length}개`;
+  }
+
+  function getCategoryBadge(cat) {
+    const map = {
+      '기능': 'bg-blue-50 text-blue-700',
+      '비기능': 'bg-purple-50 text-purple-700',
+      '보안': 'bg-red-50 text-red-700',
+      '성능': 'bg-amber-50 text-amber-700',
+    };
+    return map[cat] || 'bg-slate-50 text-slate-600';
+  }
+
+  // ─── AI 생성 시뮬레이션 ───────────────────────────
+
+  function handleGenerate() {
+    if (AppState.isGenerating) return;
+
+    setState({ isGenerating: true, stage: 'generating' });
+    document.getElementById('progress-bar-container').classList.remove('hidden');
+    document.getElementById('detail-section').classList.remove('hidden');
+
+    const total = DUMMY_DETAIL.length;
+    AppState.generateTotal = total;
+    let idx = 0;
+
+    // SSE 스트리밍 시뮬레이션 — 500ms 간격으로 행 추가
+    const interval = setInterval(() => {
+      if (idx >= DUMMY_DETAIL.length) {
+        clearInterval(interval);
+
+        // 생성 완료
+        AppState.detailReqs = [...DUMMY_DETAIL];
+        setState({ isGenerating: false, stage: 'generated' });
+
+        document.getElementById('progress-bar-container').classList.add('hidden');
+
+        // 채팅 패널 표시
+        document.getElementById('screen-chat-panel').classList.remove('hidden');
+
+        // 더미 채팅 내역 로드
+        renderChatHistory();
+        render();
+
+        showToast('상세요구사항 생성이 완료되었습니다.');
+        return;
+      }
+
+      const row = DUMMY_DETAIL[idx];
+      appendDetailRow(row);
+      idx++;
+
+      // 진행 표시 업데이트
+      const pct = Math.round((idx / total) * 100);
+      document.getElementById('progress-bar').style.width = pct + '%';
+      document.getElementById('progress-text').textContent = `${idx} / ${total} 항목`;
+
+      // 생성 버튼 카운터 업데이트
+      const counter = document.getElementById('gen-counter');
+      if (counter) counter.textContent = `(${idx}/${total})`;
+
+    }, 350);
+  }
+
+  // ─── 인라인 편집 ─────────────────────────────────
+
+  let currentEditCell = null;
+
+  function startEdit(rowId, field, tdEl) {
+    if (AppState.isGenerating) return;
+    if (currentEditCell) finishEdit();
+
+    currentEditCell = { rowId, field, el: tdEl, original: tdEl.textContent };
+    const val = tdEl.textContent;
+
+    const isContent = field === 'content';
+    const inputEl = isContent ? document.createElement('textarea') : document.createElement('input');
+    inputEl.value = val;
+    inputEl.className = `w-full text-xs border border-blue-400 rounded px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${isContent ? 'min-h-[60px] resize-y' : ''}`;
+    inputEl.style.fontFamily = 'inherit';
+
+    tdEl.textContent = '';
+    tdEl.appendChild(inputEl);
+    inputEl.focus();
+
+    inputEl.addEventListener('blur', () => finishEdit());
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        tdEl.textContent = currentEditCell.original;
+        currentEditCell = null;
+      } else if (!isContent && e.key === 'Enter') {
+        finishEdit();
+      }
+    });
+  }
+
+  function finishEdit() {
+    if (!currentEditCell) return;
+    const { rowId, field, el } = currentEditCell;
+    const inputEl = el.querySelector('input, textarea');
+    if (!inputEl) return;
+
+    const newVal = inputEl.value.trim() || currentEditCell.original;
+    el.textContent = newVal;
+    el.classList.add('editable-cell');
+
+    // 상태 업데이트
+    const reqIdx = AppState.detailReqs.findIndex(r => r.id === rowId);
+    if (reqIdx !== -1) AppState.detailReqs[reqIdx][field] = newVal;
+
+    currentEditCell = null;
+  }
+
+  // ─── 채팅 ────────────────────────────────────────
+
+  function renderChatHistory() {
+    const container = document.getElementById('chat-messages');
+    // 기존 더미 채팅
+    DUMMY_CHAT.forEach(msg => appendChatBubble(msg.role, msg.content));
+    scrollChatToBottom();
+  }
+
+  function appendChatBubble(role, content, streaming = false) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+
+    const inner = document.createElement('div');
+    inner.className = role === 'user'
+      ? 'max-w-[85%] bg-blue-600 text-white text-xs px-3 py-2 rounded-xl rounded-tr-sm leading-relaxed'
+      : 'max-w-[85%] bg-white border border-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl rounded-tl-sm leading-relaxed shadow-sm';
+
+    if (streaming) {
+      inner.classList.add('streaming-cursor');
+      inner.dataset.streaming = 'true';
+    }
+
+    inner.textContent = content;
+    div.appendChild(inner);
+    container.appendChild(div);
+    scrollChatToBottom();
+    return inner;
+  }
+
+  function scrollChatToBottom() {
+    const c = document.getElementById('chat-messages');
+    c.scrollTop = c.scrollHeight;
+  }
+
+  function handleChatKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleChatSend();
+    }
+  }
+
+  function handleChatSend() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg || AppState.isChatting || AppState.stage !== 'generated') return;
+
+    input.value = '';
+    setState({ isChatting: true });
+
+    // 사용자 메시지 표시
+    appendChatBubble('user', msg);
+
+    // AI 응답 시뮬레이션
+    const aiText = simulateAiResponse(msg);
+    const aiEl = appendChatBubble('assistant', '', true);
+
+    // 스트리밍 시뮬레이션
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i >= aiText.length) {
+        clearInterval(interval);
+        aiEl.classList.remove('streaming-cursor');
+        aiEl.dataset.streaming = 'false';
+        setState({ isChatting: false });
+
+        // 채팅 히스토리 추가
+        AppState.chatHistory.push({ role: 'user', content: msg });
+        AppState.chatHistory.push({ role: 'assistant', content: aiText });
+
+        // 테이블 패치 시뮬레이션
+        simulatePatch(msg);
+        return;
+      }
+      // 단어 단위로 스트리밍
+      const end = Math.min(i + 3, aiText.length);
+      aiEl.textContent = aiText.substring(0, end);
+      i = end;
+      scrollChatToBottom();
+    }, 30);
+  }
+
+  function simulateAiResponse(msg) {
+    if (msg.includes('REQ-001')) {
+      return 'REQ-001-02의 내용을 수정했습니다. 연속 실패 횟수를 3회로 변경하여 보안 정책을 강화했습니다. 테이블에서 변경된 내용을 확인하실 수 있습니다.';
+    }
+    if (msg.includes('구체적') || msg.includes('상세')) {
+      return '요청하신 항목의 내용을 더 구체적으로 보완했습니다. 각 요구사항에 구현 가능한 수준의 세부 조건이 추가되었습니다.';
+    }
+    return '요청하신 내용을 검토했습니다. 상세요구사항을 더 구체적으로 작성하거나 특정 항목의 수정이 필요하시면 말씀해 주세요. 예) "REQ-001-02의 잠금 횟수를 변경해줘"';
+  }
+
+  function simulatePatch(msg) {
+    // 특정 패턴에서 행 하이라이트 시뮬레이션
+    if (msg.includes('REQ-001') || msg.includes('로그인') || msg.includes('인증')) {
+      highlightRow('REQ-001-02');
+      const req = AppState.detailReqs.find(r => r.id === 'REQ-001-02');
+      if (req) {
+        req.content = '로그인 실패 시 "아이디 또는 패스워드가 올바르지 않습니다" 오류 메시지를 표시하고, 3회 연속 실패 시 계정을 일시 잠금한다.';
+        const row = document.getElementById('detail-row-REQ-001-02');
+        if (row) {
+          const cells = row.querySelectorAll('td');
+          cells[3].textContent = req.content;
+        }
+      }
+    }
+  }
+
+  function highlightRow(rowId) {
+    const row = document.getElementById('detail-row-' + rowId);
+    if (!row) return;
+    row.classList.remove('row-highlight-anim');
+    void row.offsetWidth; // reflow
+    row.classList.add('row-highlight-anim');
+  }
+
+  // ─── 다운로드 시뮬레이션 ─────────────────────────
+
+  function handleDownload(stage) {
+    if (stage === 1 && AppState.originalReqs.length === 0) return;
+    if (stage === 2 && AppState.detailReqs.length === 0) return;
+    showToast(`${stage}단계 엑셀 파일 다운로드가 시작되었습니다. (더미 동작)`);
+  }
+
+  // ─── 새 파일 업로드 ───────────────────────────────
+
+  function handleNewUpload() {
+    // 상태 초기화
+    Object.assign(AppState, {
+      stage: 'upload', sessionId: null, originalReqs: [], detailReqs: [],
+      chatHistory: [], isUploading: false, isGenerating: false, isChatting: false,
+      error: null, selectedFile: null, generateProgress: 0, generateTotal: 0,
+    });
+
+    // UI 초기화
+    document.getElementById('screen-parsed').classList.add('hidden');
+    document.getElementById('screen-upload').classList.remove('hidden');
+    document.getElementById('screen-chat-panel').classList.add('hidden');
+    document.getElementById('btn-new-upload').classList.add('hidden');
+    document.getElementById('original-tbody').innerHTML = '';
+    document.getElementById('detail-tbody').innerHTML = '';
+    document.getElementById('detail-section').classList.add('hidden');
+    document.getElementById('chat-messages').innerHTML = '';
+    document.getElementById('dropzone-content-default').classList.remove('hidden');
+    document.getElementById('dropzone-content-selected').classList.add('hidden');
+    document.getElementById('btn-upload').disabled = true;
+    document.getElementById('btn-upload').innerHTML = `
+      <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+      </svg>
+      업로드 시작
+    `;
+    render();
+  }
+
+  // ─── 유틸리티 ─────────────────────────────────────
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toast-msg').textContent = msg;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 3000);
+  }
+
+  // ─── 초기화 ──────────────────────────────────────
+  render();
+</script>
+
+</body>
+</html>

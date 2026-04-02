@@ -8,10 +8,10 @@
 
 ## 테스트 전략
 
-- **E2E 테스트**: Playwright — 17개 시나리오
-- **Integration 테스트**: pytest (백엔드 API) + Vitest (프론트엔드 스토어) — 16개 시나리오
-- **Security 테스트**: SEC-ID 기반 — 19개 시나리오
-- **Unit 테스트 (Developer 담당)**: UT-001-01 ~ UT-009-07 (아래 참조 파일에 기록)
+- **E2E 테스트**: Playwright — 29개 시나리오
+- **Integration 테스트**: pytest (백엔드 API) + Vitest (프론트엔드 스토어) — 28개 시나리오
+- **Security 테스트**: SEC-ID 기반 — 27개 시나리오
+- **Unit 테스트 (Developer 담당)**: UT-001-01 ~ UT-013-14 (아래 참조 파일에 기록)
 
 ---
 
@@ -19,9 +19,11 @@
 
 | 파일 | 내용 |
 |------|------|
-| [ut-reference.md](ut-reference.md) | 단위 테스트 참조 (UT-ID) — UT-001-xx ~ UT-009-xx 전체 테이블 |
+| [ut-reference.md](ut-reference.md) | 단위 테스트 참조 (UT-ID) — UT-001-xx ~ UT-013-xx 전체 테이블 |
 | [tst-001-007.md](tst-001-007.md) | QA 테스트 케이스 — REQ-001~007 (E2E / Integration / Security TST-001~SEC-13) |
 | [tst-008-009.md](tst-008-009.md) | QA 테스트 케이스 — REQ-008~009 (E2E / Integration / Security TST-008~SEC-19) |
+| [tst-010-013.md](tst-010-013.md) | QA 테스트 케이스 — REQ-010~013 (E2E / Integration / Security TST-010~SEC-26) |
+| [tst-004-009-delta.md](tst-004-009-delta.md) | QA 테스트 케이스 — REQ-004-04/05/06, REQ-009-04 추가분 (TST-004-04~TST-009-09, TST-SEC-27) |
 
 ---
 
@@ -41,6 +43,10 @@
 | REQ-007 | UT-007-01 ~ UT-007-16 | PASS (2026-04-01) |
 | REQ-008 | UT-008-01 ~ UT-008-09 | PASS (2026-04-02) |
 | REQ-009 | UT-009-01 ~ UT-009-07 | PASS (2026-04-02) |
+| REQ-010 | UT-010-01 ~ UT-010-05 | pending |
+| REQ-011 | UT-011-01 ~ UT-011-02 | pending |
+| REQ-012 | UT-012-01 ~ UT-012-09 | pending |
+| REQ-013 | UT-013-01 ~ UT-013-14 | pending |
 
 ---
 
@@ -56,8 +62,13 @@
 | REQ-006 | 4 | 1 (TST-SEC-07) | 4 |
 | REQ-007 | 4 | 6 (TST-SEC-08 ~ TST-SEC-13) | 16 |
 | REQ-008 | 6 | 3 (TST-SEC-14, TST-SEC-15, TST-SEC-19) | 9 |
-| REQ-009 | 7 | 3 (TST-SEC-16, TST-SEC-17, TST-SEC-18) | 7 |
-| **합계** | **39** | **19** | **60** |
+| REQ-009 | 9 | 3 (TST-SEC-16, TST-SEC-17, TST-SEC-18) | 7 |
+| REQ-010 | 4 | 0 | 5 |
+| REQ-011 | 3 | 0 | 2 |
+| REQ-012 | 4 | 3 (TST-SEC-20, TST-SEC-21, TST-SEC-22) | 9 |
+| REQ-013 | 8 | 4 (TST-SEC-23, TST-SEC-24, TST-SEC-25, TST-SEC-26) | 14 |
+| REQ-004 (delta) | 6 | 1 (TST-SEC-27) | — |
+| **합계** | **73** | **27** | **97** |
 
 ---
 
@@ -125,3 +136,38 @@
 | TST-SEC-17 | REQ-009-02 | SEC-009-02 | Security | High | Pass |
 | TST-SEC-18 | REQ-009-01 | SEC-009-03 | Security | High | Pass |
 | TST-SEC-19 | REQ-008-01 | SEC-008-02 | Security | Medium | Pass |
+| TST-010-01 | REQ-010-01 | AC-010-01 | Integration | High | 미실행 |
+| TST-010-02 | REQ-010-01 | AC-010-01 | Integration | High | 미실행 |
+| TST-010-03 | REQ-010-02 | AC-010-02 | E2E | High | 미실행 |
+| TST-010-04 | REQ-010-03 | AC-010-03 | E2E | High | 미실행 |
+| TST-011-01 | REQ-011-01 | AC-011-01 | E2E | Critical | 미실행 |
+| TST-011-02 | REQ-011-02 | AC-011-02 | E2E | Critical | 미실행 |
+| TST-011-03 | REQ-011-03 | AC-011-03 | E2E | High | 미실행 |
+| TST-012-01 | REQ-012-02 | AC-012-02 | Integration | Critical | 미실행 |
+| TST-012-02 | REQ-012-02 | AC-012-02 | Integration | Critical | 미실행 |
+| TST-012-03 | REQ-012-01, REQ-012-03 | AC-012-01, AC-012-03 | E2E | Critical | 미실행 |
+| TST-012-04 | REQ-012-03 | AC-012-03 | E2E | High | 미실행 |
+| TST-013-01 | REQ-013-01 | AC-013-01 | Integration | Critical | 미실행 |
+| TST-013-02 | REQ-013-01 | AC-013-01 | Integration | Critical | 미실행 |
+| TST-013-03 | REQ-013-01 | AC-013-01 | Integration | Critical | 미실행 |
+| TST-013-04 | REQ-013-02 | AC-013-01 | Integration | High | 미실행 |
+| TST-013-05 | REQ-013-03 | AC-013-02 | Integration | Critical | 미실행 |
+| TST-013-06 | REQ-013-03 | AC-013-02 | Integration | High | 미실행 |
+| TST-013-07 | REQ-013-03 | AC-013-02 | Integration | High | 미실행 |
+| TST-013-08 | REQ-013-04 | AC-013-04 | Integration | High | 미실행 |
+| TST-SEC-20 | REQ-012-02 | SEC-012-01 | Security | High | 미실행 |
+| TST-SEC-21 | REQ-012-02 | SEC-012-02 | Security | High | 미실행 |
+| TST-SEC-22 | REQ-012-02 | SEC-012-03 | Security | Medium | 미실행 |
+| TST-SEC-23 | REQ-013-01 | SEC-013-01 | Security | High | 미실행 |
+| TST-SEC-24 | REQ-013-03 | SEC-013-02 | Security | High | 미실행 |
+| TST-SEC-25 | REQ-013-01 | SEC-013-03 | Security | Medium | 미실행 |
+| TST-SEC-26 | REQ-013-01 | SEC-013-04 | Security | Medium | 미실행 |
+| TST-004-04 | REQ-004-04 | AC-004-04 | E2E | Critical | 미실행 |
+| TST-004-05 | REQ-004-04 | AC-004-04 | E2E | High | 미실행 |
+| TST-004-06 | REQ-004-05 | AC-004-05 | Integration | Critical | 미실행 |
+| TST-004-07 | REQ-004-05 | AC-004-05 | Integration | High | 미실행 |
+| TST-004-08 | REQ-004-06 | AC-004-06 | Integration | Critical | 미실행 |
+| TST-004-09 | REQ-004-06 | AC-004-06 | E2E | High | 미실행 |
+| TST-009-08 | REQ-009-04 | AC-009-04 | Integration | Critical | 미실행 |
+| TST-009-09 | REQ-009-04 | AC-009-04 | Integration | High | 미실행 |
+| TST-SEC-27 | REQ-004-04 | SEC-004-01 | Security | High | 미실행 |

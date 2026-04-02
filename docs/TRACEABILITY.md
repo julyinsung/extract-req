@@ -20,9 +20,9 @@
 | REQ-004-01 | req-004-design.md | TST-004-01 | req-004-review.md | 구현완료 |
 | REQ-004-02 | req-004-design.md | TST-004-02 | req-004-review.md | 구현완료 |
 | REQ-004-03 | req-004-design.md | TST-004-03 | req-004-review.md | 구현완료 |
-| REQ-004-04 | req-004-009-design.md | - | - | 미구현 |
-| REQ-004-05 | req-004-009-design.md | - | - | 미구현 |
-| REQ-004-06 | req-004-009-design.md | - | - | 미구현 |
+| REQ-004-04 | req-004-009-design.md | TST-004-04, TST-004-05, TST-SEC-27 | - | 미구현 |
+| REQ-004-05 | req-004-009-design.md | TST-004-06, TST-004-07 | - | 미구현 |
+| REQ-004-06 | req-004-009-design.md | TST-004-08, TST-004-09 | - | 미구현 |
 | REQ-005-01 | req-005-design.md | TST-005-01 | req-005-review.md | 구현완료 |
 | REQ-005-02 | req-005-design.md | TST-005-02 | req-005-review.md | 구현완료 |
 | REQ-005-03 | req-005-design.md | TST-005-03 | req-005-review.md | 구현완료 |
@@ -40,17 +40,17 @@
 | REQ-009-01 | req-004-009-design.md | TST-009-01, TST-009-02, TST-SEC-16, TST-SEC-18 | req-009-review.md | 수정예정 |
 | REQ-009-02 | req-008-009-design.md | TST-009-03, TST-009-04, TST-SEC-17 | req-009-review.md | 구현완료 |
 | REQ-009-03 | req-008-009-design.md | TST-009-05, TST-009-06 | req-009-review.md | 구현완료 |
-| REQ-009-04 | req-004-009-design.md | - | - | 미구현 |
-| REQ-010-01 | req-010-012-design.md | - | - | 미구현 |
-| REQ-010-02 | req-010-012-design.md | - | - | 미구현 |
-| REQ-010-03 | req-010-012-design.md | - | - | 미구현 |
-| REQ-011-01 | req-010-012-design.md | - | - | 미구현 |
-| REQ-011-02 | req-010-012-design.md | - | - | 미구현 |
-| REQ-011-03 | req-010-012-design.md | - | - | 미구현 |
-| REQ-012-01 | req-010-012-design.md | - | - | 미구현 |
-| REQ-012-02 | req-010-012-design.md | - | - | 미구현 |
-| REQ-012-03 | req-010-012-design.md | - | - | 미구현 |
-| REQ-013-01 | req-013-design.md | - | - | 미구현 |
-| REQ-013-02 | req-013-design.md | - | - | 미구현 |
-| REQ-013-03 | req-013-design.md | - | - | 미구현 |
-| REQ-013-04 | req-013-design.md | - | - | 미구현 |
+| REQ-009-04 | req-004-009-design.md | TST-009-08, TST-009-09 | - | 미구현 |
+| REQ-010-01 | req-010-012-design.md | TST-010-01, TST-010-02 | - | 미구현 |
+| REQ-010-02 | req-010-012-design.md | TST-010-03 | - | 미구현 |
+| REQ-010-03 | req-010-012-design.md | TST-010-04 | - | 미구현 |
+| REQ-011-01 | req-010-012-design.md | TST-011-01 | - | 미구현 |
+| REQ-011-02 | req-010-012-design.md | TST-011-02 | - | 미구현 |
+| REQ-011-03 | req-010-012-design.md | TST-011-03 | - | 미구현 |
+| REQ-012-01 | req-010-012-design.md | TST-012-03, TST-012-04 | - | 미구현 |
+| REQ-012-02 | req-010-012-design.md | TST-012-01, TST-012-02, TST-012-03, TST-SEC-20, TST-SEC-21, TST-SEC-22 | - | 미구현 |
+| REQ-012-03 | req-010-012-design.md | TST-012-03, TST-012-04 | - | 미구현 |
+| REQ-013-01 | req-013-design.md | TST-013-01, TST-013-02, TST-013-03, TST-013-04, TST-SEC-23, TST-SEC-25, TST-SEC-26 | - | 미구현 |
+| REQ-013-02 | req-013-design.md | TST-013-04 | - | 미구현 |
+| REQ-013-03 | req-013-design.md | TST-013-05, TST-013-06, TST-013-07, TST-SEC-24 | - | 미구현 |
+| REQ-013-04 | req-013-design.md | TST-013-08 | - | 미구현 |

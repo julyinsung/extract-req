@@ -64,3 +64,33 @@
 | UT-009-05 | REQ-009-03 | `state.reset_session()` | 호출 후 `state.get_sdk_session_id()`가 `None`을 반환함 | (구현 후 업데이트) |
 | UT-009-06 | REQ-009-01 | `state.set_sdk_session_id()` / `get_sdk_session_id()` | 저장한 값이 조회 시 동일하게 반환됨 | (구현 후 업데이트) |
 | UT-009-07 | REQ-009-03 | `SessionState` | `sdk_session_id` 필드의 기본값이 `None`임 | (구현 후 업데이트) |
+| UT-010-01 | REQ-010-01 | `AiGenerateService.generate_stream()` | item 이벤트 직후 progress 이벤트가 발행되는지 확인 (current 1, total N) | (구현 후 업데이트) |
+| UT-010-02 | REQ-010-01 | `AIGenerateServiceSDK.generate_stream()` | SDK 서비스도 동일한 progress 이벤트를 발행하는지 확인 | (구현 후 업데이트) |
+| UT-010-03 | REQ-010-01 | `AiGenerateService.generate_stream()` | progress.current 값이 parent_id 완료 순서(1-based)와 일치하는지 확인 | (구현 후 업데이트) |
+| UT-010-04 | REQ-010-02 | `DetailReqTable` | `isGenerating=true`, `progressTotal>0` 시 진행률 텍스트 "N / M 항목 생성 중" 렌더링 | (구현 후 업데이트) |
+| UT-010-05 | REQ-010-03 | `DetailReqTable` | `isGenerating=false` 시 진행률 UI가 DOM에서 사라지는지 확인 | (구현 후 업데이트) |
+| UT-011-01 | REQ-011-01 | `App` 레이아웃 | `#chat-area`에 `position: sticky` 스타일이 적용되어 있는지 확인 | (구현 후 업데이트) |
+| UT-011-02 | REQ-011-02 | `ChatPanel` | sticky 상태에서 채팅 전송 버튼 클릭 → `handleSend` 호출되는지 확인 (기능 정상 동작) | (구현 후 업데이트) |
+| UT-012-01 | REQ-012-02 | `state.delete_detail()` | 존재하는 id 삭제 시 True 반환 및 목록에서 제거 | (구현 후 업데이트) |
+| UT-012-02 | REQ-012-02 | `state.delete_detail()` | 존재하지 않는 id 삭제 시 False 반환 | (구현 후 업데이트) |
+| UT-012-03 | REQ-012-02 | `DELETE /api/v1/detail/{id}` | 존재하는 id 요청 시 200 + `{"deleted_id": id}` 반환 | (구현 후 업데이트) |
+| UT-012-04 | REQ-012-02 | `DELETE /api/v1/detail/{id}` | 존재하지 않는 id 요청 시 404 반환 | (구현 후 업데이트) |
+| UT-012-05 | REQ-012-03 | `DetailReqTable` | 삭제 버튼 클릭 → confirm 다이얼로그 표시 → 취소 시 행 유지 | (구현 후 업데이트) |
+| UT-012-06 | REQ-012-01 | `DetailReqTable` | 삭제 버튼 클릭 → confirm 확인 시 해당 행 제거 | (구현 후 업데이트) |
+| UT-012-07 | REQ-012-01 | `useAppStore.deleteDetailReq()` | API 성공 시 스토어에서 해당 id 제거 확인 | (구현 후 업데이트) |
+| UT-012-08 | REQ-012-02 | `useAppStore.deleteDetailReq()` | API 404 실패 시 스토어 상태 불변 + error 설정 | (구현 후 업데이트) |
+| UT-012-09 | REQ-012-01 | `DetailReqTable` | `isGenerating=true` 중 삭제 버튼 비활성화 확인 | (구현 후 업데이트) |
+| UT-013-01 | REQ-013-01 | `snapshot.save_snapshot()` | 변경 후 `session_snapshot.json`이 생성되고 `original_requirements`와 `detail_requirements` 두 키를 포함함 | (구현 후 업데이트) |
+| UT-013-02 | REQ-013-02 | `snapshot.save_snapshot()` | 두 번 연속 호출 시 파일이 최신 상태 1개로 덮어쓰임 (이전 데이터 잔존 없음) | (구현 후 업데이트) |
+| UT-013-03 | REQ-013-03 | `snapshot.load_snapshot()` | 유효한 `session_snapshot.json` 존재 시 `state.get_detail()`이 복원된 항목을 반환함 | (구현 후 업데이트) |
+| UT-013-04 | REQ-013-03 | `snapshot.load_snapshot()` | `session_snapshot.json`이 없으면 `False`를 반환하고 state가 빈 상태임 | (구현 후 업데이트) |
+| UT-013-05 | REQ-013-03 | `snapshot.load_snapshot()` | `session_snapshot.json`이 손상된 JSON이면 `False`를 반환하고 서버 기동을 중단하지 않음 | (구현 후 업데이트) |
+| UT-013-06 | REQ-013-01 | `state.patch_detail()` | 수정 성공 후 `session_snapshot.json`의 해당 항목 필드가 갱신된 값으로 저장됨 | (구현 후 업데이트) |
+| UT-013-07 | REQ-013-01 | `state.delete_detail()` | 존재하는 id 삭제 시 `True` 반환, 이후 `state.get_detail()`에 해당 항목이 없음 | (구현 후 업데이트) |
+| UT-013-08 | REQ-013-01 | `state.delete_detail()` | 존재하지 않는 id 삭제 시 `False` 반환, state 변경 없음 | (구현 후 업데이트) |
+| UT-013-09 | REQ-013-01 | `state.delete_detail()` | 삭제 성공 후 `session_snapshot.json`에 해당 항목이 포함되지 않음 | (구현 후 업데이트) |
+| UT-013-10 | REQ-013-01 | `state.set_detail()` | 호출 후 `session_snapshot.json`의 `detail_requirements` 항목 수가 인메모리 state와 일치함 | (구현 후 업데이트) |
+| UT-013-11 | REQ-013-04 | `snapshot.save_snapshot()` | 파일 쓰기 실패 시(권한 오류 등) 예외를 억제하고 호출자에게 전파하지 않음 | (구현 후 업데이트) |
+| UT-013-12 | REQ-013-01 | `DELETE /api/v1/detail/{id}` | 존재하는 id로 DELETE 호출 시 200과 `{"deleted_id": id}` 반환 | (구현 후 업데이트) |
+| UT-013-13 | REQ-013-01 | `DELETE /api/v1/detail/{id}` | 존재하지 않는 id로 DELETE 호출 시 404와 `NOT_FOUND` 에러 코드 반환 | (구현 후 업데이트) |
+| UT-013-14 | REQ-013-03 | `snapshot.load_snapshot()` | 복원 후 `state.get_original()`이 스냅샷의 `original_requirements` 목록을 반환함 | (구현 후 업데이트) |

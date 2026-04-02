@@ -1,6 +1,7 @@
-"""상세요구사항 인라인 편집 라우터.
+"""상세요구사항 CRUD 라우터.
 
 PATCH /api/v1/detail/{id} — 특정 상세요구사항의 단일 필드를 수정한다 (REQ-008-01).
+DELETE /api/v1/detail/{id} — 특정 상세요구사항을 삭제한다 (REQ-012/REQ-013).
 경로 파라미터를 권위 있는 식별자로 사용한다 (RESTful 관례, 설계 문서 트레이드오프 참조).
 """
 
@@ -62,3 +63,35 @@ def patch_detail(id: str, req: InlineEditRequest) -> DetailRequirement:
     # state.get_detail()이 동일 _lock 패턴을 사용하므로 스레드 안전성이 보장된다.
     updated = next(r for r in state.get_detail() if r.id == id)
     return updated
+
+
+@router.delete(
+    "/detail/{id}",
+    responses={404: {"model": ErrorResponse}},
+)
+def delete_detail(id: str) -> dict:
+    """특정 상세요구사항을 삭제하고 삭제된 id를 반환한다 (REQ-012/REQ-013).
+
+    state.delete_detail()이 스냅샷 저장까지 처리하므로 라우터는 결과만 반환한다.
+    SEC-012-02: id는 state 내부에서 문자열 동등 비교로만 사용하여 경로 순회 위협 없음.
+
+    Args:
+        id: 삭제할 DetailRequirement의 id (경로 파라미터)
+
+    Returns:
+        {"deleted_id": id} — 삭제 성공 시
+
+    Raises:
+        HTTPException 404: 해당 id의 상세요구사항이 존재하지 않는 경우
+    """
+    success = state.delete_detail(id)
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(
+                code="NOT_FOUND",
+                message=f"해당 ID의 상세요구사항을 찾을 수 없습니다: {id}",
+            ).model_dump(),
+        )
+
+    return {"deleted_id": id}

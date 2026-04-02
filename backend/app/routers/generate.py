@@ -31,7 +31,7 @@ async def generate_details(req: GenerateRequest):
     except ImportError as e:
         raise HTTPException(status_code=503, detail=f"AI 백엔드를 초기화할 수 없습니다: {e}")
     return StreamingResponse(
-        service.generate_stream(req.session_id),
+        service.generate_stream(req.session_id, req.req_group),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Dict, Literal
 from datetime import datetime
 import uuid
 
@@ -28,6 +28,8 @@ class SessionState(BaseModel):
     detail_requirements: list[DetailRequirement] = []
     chat_messages: list[ChatMessage] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    # REQ-009: claude-agent-sdk 세션 연속 실행을 위한 session_id.
-    # reset_session()이 새 SessionState()를 생성할 때 자동으로 None으로 초기화된다.
-    sdk_session_id: str | None = None
+    # REQ-009-04: claude-agent-sdk 세션을 REQ 그룹별로 독립 관리한다.
+    # 키: REQ 그룹 ID (예: "REQ-001"), 값: SDK session_id
+    # reset_session()이 새 SessionState()를 생성할 때 자동으로 빈 딕셔너리로 초기화된다.
+    # Field(default_factory=dict)로 인스턴스 간 딕셔너리 공유를 방지한다.
+    sdk_sessions: Dict[str, str] = Field(default_factory=dict)

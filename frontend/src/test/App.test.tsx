@@ -1,6 +1,8 @@
 /**
  * App 컴포넌트 레이아웃 렌더링 검증.
  * phase 상태에 따라 올바른 영역이 조건부 렌더링되는지 확인한다.
+ *
+ * UT-011-01: #chat-area에 position: sticky 스타일이 적용되어 있는지 확인 (REQ-011-01)
  */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
@@ -50,6 +52,53 @@ describe('App — phase: generated', () => {
     render(<App />)
     expect(screen.getByTestId('table-area')).toBeInTheDocument()
     expect(screen.getByTestId('chat-area')).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// UT-011-01: #chat-area에 position: sticky 스타일 적용 확인 (REQ-011-01)
+// ---------------------------------------------------------------------------
+describe('App — REQ-011 Sticky 채팅창 (UT-011-01)', () => {
+  it('#chat-area 요소에 position: sticky 스타일이 적용되어 있다', () => {
+    useAppStore.getState().setPhase('generated')
+    render(<App />)
+
+    const chatArea = screen.getByTestId('chat-area')
+    expect(chatArea).toHaveStyle({ position: 'sticky' })
+  })
+
+  it('#chat-area 요소에 top: 24px 스타일이 적용되어 있다', () => {
+    useAppStore.getState().setPhase('generated')
+    render(<App />)
+
+    const chatArea = screen.getByTestId('chat-area')
+    expect(chatArea).toHaveStyle({ top: '24px' })
+  })
+
+  it('#chat-area 요소에 maxHeight: calc(100vh - 48px) 스타일이 적용되어 있다', () => {
+    useAppStore.getState().setPhase('generated')
+    render(<App />)
+
+    const chatArea = screen.getByTestId('chat-area')
+    expect(chatArea).toHaveStyle({ maxHeight: 'calc(100vh - 48px)' })
+  })
+
+  it('#chat-area 요소에 overflowY: auto 스타일이 적용되어 있다', () => {
+    useAppStore.getState().setPhase('generated')
+    render(<App />)
+
+    const chatArea = screen.getByTestId('chat-area')
+    expect(chatArea).toHaveStyle({ overflowY: 'auto' })
+  })
+
+  it('#table-area에는 overflow 속성이 강제 지정되지 않는다 (sticky 동작 보장)', () => {
+    useAppStore.getState().setPhase('generated')
+    render(<App />)
+
+    const tableArea = screen.getByTestId('table-area')
+    // overflow: hidden 또는 scroll이 아닌 것을 확인 (visible 유지)
+    expect(tableArea).not.toHaveStyle({ overflow: 'hidden' })
+    expect(tableArea).not.toHaveStyle({ overflow: 'scroll' })
   })
 })
 

@@ -85,22 +85,26 @@ class AIGenerateServiceSDK:
     AiGenerateService.generate_stream()과 동일한 SSE 출력 형식을 유지한다.
     """
 
-    async def generate_stream(self, session_id: str) -> AsyncGenerator[str, None]:
+    async def generate_stream(self, session_id: str, req_group: str = "") -> AsyncGenerator[str, None]:
         """원본 요구사항을 claude-agent-sdk로 상세요구사항으로 분해하여 SSE 스트림으로 발행한다.
 
         스트리밍 청크를 누적하다가 완전한 JSON 객체 경계를 감지하면 즉시 파싱·발행한다.
         완료 후 state에 전체 목록을 저장한다.
+        parent_id 그룹 완료 시 progress 이벤트를 발행한다 (REQ-010-01).
 
         Args:
             session_id: 클라이언트 세션 식별자 (state 조회에만 사용)
+            req_group: 생성 완료 후 SDK session_id를 저장할 REQ 그룹 ID (REQ-009)
 
         Yields:
-            SSE 형식 문자열 — type이 "item", "done", "error" 중 하나
+            SSE 형식 문자열 — type이 "item", "progress", "done", "error" 중 하나
         """
         originals = state.get_original()
         if not originals:
             yield _sse({"type": "error", "message": "파싱된 요구사항이 없습니다."})
             return
+
+        total_originals = len(originals)
 
         # SEC-007-05: JSON 직렬화로 전달 — content 내 임의 지시문이 프롬프트에 병합되는 것을 차단
         user_message = (
@@ -112,6 +116,9 @@ class AIGenerateServiceSDK:
         details: list[DetailRequirement] = []
         order_counters: dict[str, int] = {}
         buf = ""
+        # progress 추적: 완료된 parent_id 집합 및 마지막 처리 parent_id
+        completed_parents: set[str] = set()
+        last_parent_id: str | None = None
 
         try:
             # cli_path: PATH 환경에 무관하게 claude 바이너리를 명시적으로 지정 (SEC-007-04)
@@ -156,6 +163,19 @@ class AIGenerateServiceSDK:
                                 event = _parse_obj(obj_str, order_counters, details)
                                 if event:
                                     yield event
+                                    # REQ-010-01: parent_id 전환 감지 시 이전 그룹 progress 발행
+                                    if details:
+                                        current_parent = details[-1].parent_id
+                                        if last_parent_id is not None and last_parent_id != current_parent:
+                                            if last_parent_id not in completed_parents:
+                                                completed_parents.add(last_parent_id)
+                                                yield _sse({
+                                                    "type": "progress",
+                                                    "current": len(completed_parents),
+                                                    "total": total_originals,
+                                                    "req_id": last_parent_id,
+                                                })
+                                        last_parent_id = current_parent
                 elif isinstance(message, ResultMessage):
                     # ResultMessage.result는 AssistantMessage 청크의 전체본이므로 buf에 추가하지 않는다.
                     # buf에 남아있는 불완전한 청크(마지막 JSON이 잘린 경우)만 처리한다.
@@ -171,16 +191,28 @@ class AIGenerateServiceSDK:
                         event = _parse_obj(obj_str, order_counters, details)
                         if event:
                             yield event
-                    # REQ-009-01: SDK 실행 완전 종료 시점에 session_id를 저장한다.
-                    # session_id가 None이거나 빈 문자열이면 저장 건너뜀 — 기존 동작(새 세션) 유지.
+                            if details:
+                                last_parent_id = details[-1].parent_id
+                    # REQ-009-01: SDK 실행 완전 종료 시점에 session_id를 그룹 키로 저장한다.
+                    # req_group이 비어있으면 저장 건너뜀 — 기존 동작(새 세션) 유지.
                     sdk_sid = getattr(message, "session_id", None)
-                    if sdk_sid:
-                        state.set_sdk_session_id(sdk_sid)
-                    else:
+                    if sdk_sid and req_group:
+                        state.set_sdk_session_id(req_group, sdk_sid)
+                    elif not sdk_sid:
                         import logging
                         logging.getLogger(__name__).warning(
                             "ResultMessage에 session_id가 없습니다. 세션 연속성 비활성화."
                         )
+
+            # 마지막 parent_id progress 발행 (전환이 없었을 경우 포함)
+            if last_parent_id and last_parent_id not in completed_parents:
+                completed_parents.add(last_parent_id)
+                yield _sse({
+                    "type": "progress",
+                    "current": len(completed_parents),
+                    "total": total_originals,
+                    "req_id": last_parent_id,
+                })
 
             state.set_detail(details)
             yield _sse({"type": "done", "total": len(details)})

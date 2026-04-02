@@ -33,6 +33,9 @@ from app.models.api import ChatMessage
 # ---------------------------------------------------------------------------
 
 
+_REQ_GROUP = "SFR-001"  # 테스트에서 사용하는 req_group 상수
+
+
 def _make_originals() -> list[OriginalRequirement]:
     """테스트용 원본 요구사항 픽스처."""
     return [
@@ -203,7 +206,7 @@ class TestAIGenerateServiceSDK:
         service = AIGenerateServiceSDK()
         with patch("app.services.ai_generate_service_sdk.query", return_value=_make_sdk_stream(sdk_messages)):
             events = []
-            async for event in service.generate_stream("test-session"):
+            async for event in service.generate_stream("test-session", _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -231,7 +234,7 @@ class TestAIGenerateServiceSDK:
         service = AIGenerateServiceSDK()
         with patch("app.services.ai_generate_service_sdk.query", return_value=_make_sdk_stream(sdk_messages)):
             events = []
-            async for event in service.generate_stream("test-session"):
+            async for event in service.generate_stream("test-session", _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -258,7 +261,7 @@ class TestAIGenerateServiceSDK:
         service = AIGenerateServiceSDK()
         with patch("app.services.ai_generate_service_sdk.query", new=_failing_query):
             events = []
-            async for event in service.generate_stream("test-session"):
+            async for event in service.generate_stream("test-session", _REQ_GROUP):
                 events.append(event)  # 예외가 전파되지 않아야 한다
 
         parsed = _parse_events(events)
@@ -275,7 +278,7 @@ class TestAIGenerateServiceSDK:
 
         service = AIGenerateServiceSDK()
         events = []
-        async for event in service.generate_stream("test-session"):
+        async for event in service.generate_stream("test-session", _REQ_GROUP):
             events.append(event)
 
         parsed = _parse_events(events)
@@ -309,7 +312,7 @@ class TestChatServiceSDK:
         service = ChatServiceSDK()
         with patch("app.services.chat_service_sdk.query", return_value=_make_sdk_stream(sdk_messages)):
             events = []
-            async for event in service.chat_stream("test-session", "설명해줘", []):
+            async for event in service.chat_stream("test-session", "설명해줘", [], _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -334,7 +337,7 @@ class TestChatServiceSDK:
         service = ChatServiceSDK()
         with patch("app.services.chat_service_sdk.query", return_value=_make_sdk_stream(sdk_messages)):
             events = []
-            async for event in service.chat_stream("test-session", "수정해줘", []):
+            async for event in service.chat_stream("test-session", "수정해줘", [], _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -357,7 +360,7 @@ class TestChatServiceSDK:
 
         service = ChatServiceSDK()
         events = []
-        async for event in service.chat_stream("test-session", long_message, []):
+        async for event in service.chat_stream("test-session", long_message, [], _REQ_GROUP):
             events.append(event)
 
         parsed = _parse_events(events)
@@ -383,7 +386,7 @@ class TestChatServiceSDK:
         service = ChatServiceSDK()
         with patch("app.services.chat_service_sdk.query", return_value=_make_sdk_stream(sdk_messages)):
             events = []
-            async for event in service.chat_stream("test-session", "수정", []):
+            async for event in service.chat_stream("test-session", "수정", [], _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -417,7 +420,7 @@ class TestRouterFactoryIntegration:
         """UT-007-15: generate 라우터가 팩토리 반환 서비스의 generate_stream()을 호출한다."""
         mock_service = MagicMock()
 
-        async def _mock_stream(session_id):
+        async def _mock_stream(session_id, req_group=""):
             yield "data: {}\n\n"
 
         mock_service.generate_stream = _mock_stream
@@ -426,7 +429,7 @@ class TestRouterFactoryIntegration:
             from app.routers.generate import generate_details
             from app.models.api import GenerateRequest
 
-            req = GenerateRequest(session_id="test-session")
+            req = GenerateRequest(session_id="test-session", req_group="SFR-001")
             response = await generate_details(req)
 
             # StreamingResponse가 반환되어야 한다
@@ -438,7 +441,7 @@ class TestRouterFactoryIntegration:
         """UT-007-16: chat 라우터가 팩토리 반환 서비스의 chat_stream()을 호출한다."""
         mock_service = MagicMock()
 
-        async def _mock_stream(session_id, message, history):
+        async def _mock_stream(session_id, message, history, req_group=""):
             yield "data: {}\n\n"
 
         mock_service.chat_stream = _mock_stream
@@ -447,7 +450,7 @@ class TestRouterFactoryIntegration:
             from app.routers.chat import chat
             from app.models.api import ChatRequest
 
-            req = ChatRequest(session_id="test-session", message="테스트", history=[])
+            req = ChatRequest(session_id="test-session", message="테스트", history=[], req_group="SFR-001")
             response = await chat(req)
 
             assert response is not None

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Literal
 
 from app.models.requirement import OriginalRequirement, DetailRequirement
@@ -15,6 +15,8 @@ class GenerateRequest(BaseModel):
     """AI 상세요구사항 생성 요청."""
 
     session_id: str
+    # REQ-009: 생성 완료 후 SDK session_id를 저장할 REQ 그룹 ID
+    req_group: str = Field(min_length=1)
 
 
 class GenerateResponse(BaseModel):
@@ -34,11 +36,14 @@ class ChatRequest(BaseModel):
     """채팅 수정 요청.
 
     history는 이전 대화 컨텍스트를 Claude API에 전달하기 위해 포함한다.
+    req_group은 서버가 컨텍스트 필터링에 사용한다 (REQ-004-05).
     """
 
     session_id: str
     message: str
     history: list[ChatMessage] = []
+    # REQ-004-05: 선택된 REQ 그룹 ID — 빈 문자열 차단
+    req_group: str = Field(min_length=1)
 
 
 class InlineEditRequest(BaseModel):

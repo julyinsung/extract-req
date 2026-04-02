@@ -9,6 +9,8 @@ import { v4 as uuidv4 } from 'uuid'
  *
  * SSE 스트림으로 AI 응답을 실시간 표시하고,
  * patch 이벤트 수신 시 DetailReqTable 행을 즉시 갱신한다.
+ * replace 이벤트 수신 시 해당 REQ 그룹 상세항목 전체를 교체한다 (REQ-004-06).
+ * selectedReqGroup이 null이면 채팅 입력창을 비활성화한다 (REQ-004-04).
  * sessionId 미존재 또는 detailReqs 미생성 시 입력창을 비활성화한다 (UT-004-05).
  */
 export function ChatPanel() {
@@ -17,8 +19,10 @@ export function ChatPanel() {
     detailReqs,
     chatHistory,
     isChatting,
+    selectedReqGroup,
     appendChatMessage,
     patchDetailReq,
+    replaceDetailReqGroup,
     setIsChatting,
     setError,
   } = useAppStore()
@@ -28,8 +32,9 @@ export function ChatPanel() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
 
-  // sessionId 없거나 상세요구사항 미생성 또는 채팅 진행 중이면 입력 비활성화 (UT-004-05)
-  const disabled = !sessionId || detailReqs.length === 0 || isChatting
+  // sessionId 없거나 REQ 그룹 미선택 또는 상세요구사항 미생성 또는 채팅 진행 중이면 입력 비활성화
+  // REQ-004-04: selectedReqGroup 없으면 req_group 없이 요청이 전송되어 서버 400 오류 발생
+  const disabled = !sessionId || !selectedReqGroup || detailReqs.length === 0 || isChatting
 
   // 새 메시지 또는 스트리밍 텍스트 변경 시 최신 메시지로 자동 스크롤
   useEffect(() => {
@@ -46,10 +51,11 @@ export function ChatPanel() {
   /**
    * 메시지 전송 핸들러.
    * user 메시지를 히스토리에 먼저 추가한 뒤 SSE 스트림을 시작한다 (UT-004-03).
+   * req_group을 페이로드에 포함하여 서버가 그룹 컨텍스트로 처리하도록 한다 (REQ-004-05).
    */
   const handleSend = () => {
     const msg = input.trim()
-    if (!msg || disabled || !sessionId) return
+    if (!msg || disabled || !sessionId || !selectedReqGroup) return
 
     const userMsg: ChatMessage = {
       id: uuidv4(),
@@ -69,6 +75,7 @@ export function ChatPanel() {
         session_id: sessionId,
         message: msg,
         history: chatHistory.map((m) => ({ role: m.role, content: m.content })),
+        req_group: selectedReqGroup,
       },
       {
         onText: (delta) => {
@@ -79,6 +86,11 @@ export function ChatPanel() {
         onPatch: (id, field, value) => {
           patchDetailReq(id, field as keyof import('../types').DetailRequirement, value)
           window.dispatchEvent(new CustomEvent('req-highlight', { detail: id }))
+        },
+        // replace 이벤트: 해당 REQ 그룹 상세항목 전체 교체 (REQ-004-06)
+        onReplace: (reqGroup, items) => {
+          replaceDetailReqGroup(reqGroup, items)
+          window.dispatchEvent(new CustomEvent('req-group-replace', { detail: reqGroup }))
         },
         onDone: () => {
           const aiMsg: ChatMessage = {
@@ -99,19 +111,20 @@ export function ChatPanel() {
     )
   }
 
+  // REQ-011: 고정 height 600 제거 → height 100%로 부모(#chat-area)의 maxHeight를 채움
   return (
     <div
       data-testid="chat-panel"
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: 600,
+        height: '100%',
         border: '1px solid #E2E8F0',
         borderRadius: 12,
         overflow: 'hidden',
       }}
     >
-      {/* 패널 헤더 */}
+      {/* 패널 헤더 — selectedReqGroup 있으면 컨텍스트 표시 (REQ-004-04) */}
       <div
         style={{
           padding: '12px 16px',
@@ -121,7 +134,9 @@ export function ChatPanel() {
           flexShrink: 0,
         }}
       >
-        AI 수정 채팅
+        {selectedReqGroup
+          ? `AI 수정 채팅 — ${selectedReqGroup} 컨텍스트로 대화 중`
+          : 'AI 수정 채팅'}
       </div>
 
       {/* 대화 내역 영역 — flex-grow로 나머지 공간 점유 */}
@@ -145,6 +160,8 @@ export function ChatPanel() {
           >
             {detailReqs.length === 0
               ? '상세요구사항을 먼저 생성해주세요.'
+              : !selectedReqGroup
+              ? '원본 요구사항 테이블에서 대화할 REQ 그룹을 선택해주세요.'
               : '요구사항 수정을 요청해보세요.\n예: "REQ-001-02의 내용을 더 구체적으로 작성해줘"'}
           </p>
         )}
@@ -221,6 +238,8 @@ export function ChatPanel() {
             disabled
               ? detailReqs.length === 0
                 ? '상세요구사항 생성 후 이용 가능합니다.'
+                : !selectedReqGroup
+                ? '원본 요구사항 테이블에서 REQ 그룹을 선택하세요.'
                 : '처리 중...'
               : '수정 요청을 입력하세요... (Enter 전송, Shift+Enter 줄바꿈)'
           }

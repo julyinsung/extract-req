@@ -19,21 +19,28 @@ export async function uploadHwp(file: File): Promise<ParseResponse> {
  * EventSource 대신 fetch + ReadableStream을 사용하는 이유:
  * POST 바디 전달이 필요하기 때문에 GET 전용인 EventSource는 적합하지 않다 (REQ-006 설계 참조).
  *
+ * @param sessionId - 현재 세션 ID
+ * @param reqGroup - 생성할 REQ 그룹 ID (REQ-009)
  * @returns cleanup 함수 — 컴포넌트 언마운트 또는 중단 시 호출
  */
 export function generateDetailStream(
   sessionId: string,
   callbacks: {
     onItem: (req: DetailRequirement) => void
+    onProgress?: (current: number, total: number, reqId: string) => void
     onDone: (total: number) => void
     onError: (msg: string) => void
-  }
+  },
+  reqGroup?: string
 ): () => void {
   const controller = new AbortController()
+  const body: Record<string, string> = { session_id: sessionId }
+  if (reqGroup) body.req_group = reqGroup
+
   fetch(`${BASE}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: sessionId }),
+    body: JSON.stringify(body),
     signal: controller.signal,
   }).then(async (res) => {
     const reader = res.body!.getReader()
@@ -49,6 +56,10 @@ export function generateDetailStream(
         if (!line.startsWith('data: ')) continue
         const json = JSON.parse(line.slice(6))
         if (json.type === 'item') callbacks.onItem(json.data)
+        else if (json.type === 'progress' && callbacks.onProgress) {
+          // REQ-010: progress 이벤트 수신 시 진행률 갱신
+          callbacks.onProgress(json.current, json.total, json.req_id)
+        }
         else if (json.type === 'done') callbacks.onDone(json.total)
         else if (json.type === 'error') callbacks.onError(json.message)
       }
@@ -63,14 +74,21 @@ export function generateDetailStream(
 /**
  * 채팅 메시지를 전송하고 AI 응답을 SSE 스트림으로 수신한다.
  * patch 이벤트 수신 시 해당 상세 요구사항 행을 즉시 갱신한다 (REQ-004-02).
+ * replace 이벤트 수신 시 해당 REQ 그룹 전체 상세항목을 교체한다 (REQ-004-06).
  *
  * @returns cleanup 함수
  */
 export function chatStream(
-  payload: { session_id: string; message: string; history: { role: string; content: string }[] },
+  payload: {
+    session_id: string
+    message: string
+    history: { role: string; content: string }[]
+    req_group?: string
+  },
   callbacks: {
     onText: (delta: string) => void
     onPatch: (id: string, field: string, value: string) => void
+    onReplace?: (reqGroup: string, items: DetailRequirement[]) => void
     onDone: () => void
     onError: (msg: string) => void
   }
@@ -96,6 +114,10 @@ export function chatStream(
         const json = JSON.parse(line.slice(6))
         if (json.type === 'text') callbacks.onText(json.delta)
         else if (json.type === 'patch') callbacks.onPatch(json.id, json.field, json.value)
+        else if (json.type === 'replace' && callbacks.onReplace) {
+          // REQ-004-06: replace 이벤트 수신 시 해당 그룹 전체 교체
+          callbacks.onReplace(json.req_group, json.items)
+        }
         else if (json.type === 'done') callbacks.onDone()
         else if (json.type === 'error') callbacks.onError(json.message)
       }
@@ -126,6 +148,18 @@ export async function patchDetailReq(
     field,
     value,
   })
+  return data
+}
+
+/**
+ * 특정 상세 요구사항을 삭제한다 (REQ-012-01).
+ * 404 수신 시 Error를 throw한다 (REQ-012-02).
+ *
+ * @param id - 삭제할 상세 요구사항의 ID (경로 파라미터)
+ * @returns 삭제된 ID를 포함한 객체
+ */
+export async function deleteDetailReq(id: string): Promise<{ deleted_id: string }> {
+  const { data } = await axios.delete<{ deleted_id: string }>(`${BASE}/detail/${id}`)
   return data
 }
 

@@ -19,6 +19,11 @@ vi.mock('../api', () => ({
   generateDetailStream: vi.fn(),
   chatStream: vi.fn(),
   getDownloadUrl: vi.fn(),
+  patchDetailReq: vi.fn().mockResolvedValue({
+    id: 'REQ-001-01', parent_id: 'REQ-001', category: '기능',
+    name: '수정된 명칭', content: '상세 내용 1', order_index: 1, is_modified: true,
+  }),
+  deleteDetailReq: vi.fn().mockResolvedValue({ deleted_id: 'REQ-001-01' }),
 }))
 
 /** 테스트용 상세 요구사항 생성 헬퍼 */
@@ -281,8 +286,10 @@ describe('DetailReqTable — 셀 클릭 편집 전환', () => {
     expect(screen.getByTestId('inline-edit-textarea')).toBeInTheDocument()
   })
 
-  it('blur 후 patchDetailReq가 호출되어 스토어 값이 갱신된다', () => {
+  it('blur 후 patchDetailReq가 호출되어 스토어 값이 갱신된다', async () => {
     useAppStore.getState().appendDetailReq(makeDetailReq(1))
+
+    const { waitFor } = await import('@testing-library/react')
 
     render(<DetailReqTable />)
 
@@ -293,10 +300,13 @@ describe('DetailReqTable — 셀 클릭 편집 전환', () => {
     fireEvent.change(input, { target: { value: '수정된 명칭' } })
     fireEvent.blur(input)
 
-    const patched = useAppStore
-      .getState()
-      .detailReqs.find((r) => r.id === 'REQ-001-01')
-    expect(patched?.name).toBe('수정된 명칭')
-    expect(patched?.is_modified).toBe(true)
+    // syncPatchDetailReq는 비동기이므로 Promise 해결까지 대기한다
+    await waitFor(() => {
+      const patched = useAppStore
+        .getState()
+        .detailReqs.find((r) => r.id === 'REQ-001-01')
+      expect(patched?.name).toBe('수정된 명칭')
+      expect(patched?.is_modified).toBe(true)
+    })
   })
 })

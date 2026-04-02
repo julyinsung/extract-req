@@ -4,6 +4,7 @@
  * UT-004-05: detailReqs 비어있을 때 ChatInput disabled
  * UT-004-03: 메시지 전송 → chatHistory에 user 메시지 추가
  * UT-004-02: patch 이벤트 → patchDetailReq + req-highlight CustomEvent 발행
+ * UT-011-02: sticky 상태에서 채팅 전송 버튼 클릭 → handleSend 호출 (기능 정상 동작)
  */
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -55,6 +56,8 @@ describe('ChatPanel — 비활성화 (UT-004-05)', () => {
 
   it('sessionId와 detailReqs 모두 있으면 textarea가 활성화된다', () => {
     useAppStore.getState().setSessionId('session-1')
+    // REQ-004-04: selectedReqGroup도 함께 설정해야 활성화된다
+    useAppStore.getState().setSelectedReqGroup('REQ-001')
     useAppStore.getState().appendDetailReq({
       id: 'REQ-001-01',
       parent_id: 'REQ-001',
@@ -87,6 +90,8 @@ describe('ChatPanel — 비활성화 (UT-004-05)', () => {
 describe('ChatPanel — 메시지 전송 (UT-004-03)', () => {
   beforeEach(() => {
     useAppStore.getState().setSessionId('session-1')
+    // REQ-004-04: 채팅 전송을 위해 selectedReqGroup도 함께 설정한다
+    useAppStore.getState().setSelectedReqGroup('REQ-001')
     useAppStore.getState().appendDetailReq({
       id: 'REQ-001-01',
       parent_id: 'REQ-001',
@@ -171,6 +176,8 @@ describe('ChatPanel — 메시지 전송 (UT-004-03)', () => {
 describe('ChatPanel — patch 이벤트 처리 (UT-004-02)', () => {
   it('onPatch 콜백 호출 시 patchDetailReq 스토어가 갱신되고 req-highlight 이벤트가 발행된다', async () => {
     useAppStore.getState().setSessionId('session-1')
+    // REQ-004-04: selectedReqGroup 설정 필요
+    useAppStore.getState().setSelectedReqGroup('REQ-001')
     useAppStore.getState().appendDetailReq({
       id: 'REQ-001-01',
       parent_id: 'REQ-001',
@@ -217,6 +224,8 @@ describe('ChatPanel — patch 이벤트 처리 (UT-004-02)', () => {
 
   it('onDone 콜백 호출 시 chatHistory에 assistant 메시지가 추가된다', async () => {
     useAppStore.getState().setSessionId('session-1')
+    // REQ-004-04: selectedReqGroup 설정 필요
+    useAppStore.getState().setSelectedReqGroup('REQ-001')
     useAppStore.getState().appendDetailReq({
       id: 'REQ-001-01',
       parent_id: 'REQ-001',
@@ -254,6 +263,8 @@ describe('ChatPanel — patch 이벤트 처리 (UT-004-02)', () => {
 
   it('onError 콜백 호출 시 에러 상태가 설정되고 isChatting이 false로 돌아온다', async () => {
     useAppStore.getState().setSessionId('session-1')
+    // REQ-004-04: selectedReqGroup 설정 필요
+    useAppStore.getState().setSelectedReqGroup('REQ-001')
     useAppStore.getState().appendDetailReq({
       id: 'REQ-001-01',
       parent_id: 'REQ-001',
@@ -286,6 +297,44 @@ describe('ChatPanel — patch 이벤트 처리 (UT-004-02)', () => {
 })
 
 // ---------------------------------------------------------------------------
+// UT-011-02: sticky 상태에서 채팅 전송 버튼 기능 정상 동작 확인 (REQ-011-02)
+// ---------------------------------------------------------------------------
+describe('ChatPanel — REQ-011 sticky 상태 기능 동작 (UT-011-02)', () => {
+  it('채팅 전송 버튼 클릭 시 chatStream이 호출된다 (sticky 적용 후 기능 정상)', () => {
+    useAppStore.getState().setSessionId('session-1')
+    // REQ-004-04: selectedReqGroup 설정 필요
+    useAppStore.getState().setSelectedReqGroup('REQ-001')
+    useAppStore.getState().appendDetailReq({
+      id: 'REQ-001-01',
+      parent_id: 'REQ-001',
+      category: '기능',
+      name: '명칭',
+      content: '내용',
+      order_index: 1,
+      is_modified: false,
+    })
+
+    render(<ChatPanel />)
+
+    const textarea = screen.getByTestId('chat-input')
+    fireEvent.change(textarea, { target: { value: 'sticky 상태 전송 테스트' } })
+    fireEvent.click(screen.getByTestId('chat-send-btn'))
+
+    // chatStream이 실제로 호출되어 handleSend가 정상 동작함을 확인
+    expect(mockedChatStream).toHaveBeenCalledTimes(1)
+    expect(mockedChatStream.mock.calls[0][0]).toMatchObject({
+      session_id: 'session-1',
+      message: 'sticky 상태 전송 테스트',
+    })
+
+    // user 메시지가 chatHistory에 추가됨을 확인
+    const history = useAppStore.getState().chatHistory
+    expect(history).toHaveLength(1)
+    expect(history[0].role).toBe('user')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // ChatPanel — UI 렌더링
 // ---------------------------------------------------------------------------
 describe('ChatPanel — UI 렌더링', () => {
@@ -300,6 +349,8 @@ describe('ChatPanel — UI 렌더링', () => {
 
   it('sessionId와 detailReqs 있을 때 빈 대화 안내 문구가 표시된다', () => {
     useAppStore.getState().setSessionId('session-1')
+    // REQ-004-04: selectedReqGroup도 함께 설정해야 "요구사항 수정" 안내가 표시된다
+    useAppStore.getState().setSelectedReqGroup('REQ-001')
     useAppStore.getState().appendDetailReq({
       id: 'REQ-001-01',
       parent_id: 'REQ-001',

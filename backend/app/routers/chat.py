@@ -30,7 +30,7 @@ async def chat(req: ChatRequest):
     except ImportError as e:
         raise HTTPException(status_code=503, detail=f"AI 백엔드를 초기화할 수 없습니다: {e}")
     return StreamingResponse(
-        service.chat_stream(req.session_id, req.message, req.history),
+        service.chat_stream(req.session_id, req.message, req.history, req.req_group),
         media_type="text/event-stream",
         # 프록시/nginx가 응답을 버퍼링하지 않도록 캐시 비활성화
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},

@@ -12,6 +12,9 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+# anthropic 패키지가 없는 환경에서는 이 테스트 모듈 전체를 스킵한다
+pytest.importorskip("anthropic", reason="anthropic 패키지 필요 — 설치 없으면 스킵")
+
 import app.state as state
 from app.models.requirement import DetailRequirement, OriginalRequirement
 from app.services.chat_service import ChatService, _sse
@@ -20,6 +23,9 @@ from app.services.chat_service import ChatService, _sse
 # ---------------------------------------------------------------------------
 # 픽스처
 # ---------------------------------------------------------------------------
+
+
+_REQ_GROUP = "SFR-001"  # 테스트에서 사용하는 req_group 상수
 
 
 def _make_originals() -> list[OriginalRequirement]:
@@ -112,7 +118,7 @@ class TestChatStreamNormal:
         service = ChatService()
         with patch.object(service.client.messages, "stream", return_value=mock_stream):
             events = []
-            async for event in service.chat_stream("test-session", "수정해줘", []):
+            async for event in service.chat_stream("test-session", "수정해줘", [], _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -130,7 +136,7 @@ class TestChatStreamNormal:
         service = ChatService()
         with patch.object(service.client.messages, "stream", return_value=mock_stream):
             events = []
-            async for event in service.chat_stream("test-session", "안녕", []):
+            async for event in service.chat_stream("test-session", "안녕", [], _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -161,7 +167,7 @@ class TestPatchParsing:
         service = ChatService()
         with patch.object(service.client.messages, "stream", return_value=mock_stream):
             events = []
-            async for event in service.chat_stream("test-session", "수정", []):
+            async for event in service.chat_stream("test-session", "수정", [], _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -183,7 +189,7 @@ class TestPatchParsing:
 
         service = ChatService()
         with patch.object(service.client.messages, "stream", return_value=mock_stream):
-            async for _ in service.chat_stream("test-session", "수정", []):
+            async for _ in service.chat_stream("test-session", "수정", [], _REQ_GROUP):
                 pass
 
         details = state.get_detail()
@@ -203,7 +209,7 @@ class TestPatchParsing:
         service = ChatService()
         with patch.object(service.client.messages, "stream", return_value=mock_stream):
             events = []
-            async for event in service.chat_stream("test-session", "수정", []):
+            async for event in service.chat_stream("test-session", "수정", [], _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -234,7 +240,7 @@ class TestNoPatchForGeneralQuestion:
         service = ChatService()
         with patch.object(service.client.messages, "stream", return_value=mock_stream):
             events = []
-            async for event in service.chat_stream("test-session", "몇 건이에요?", []):
+            async for event in service.chat_stream("test-session", "몇 건이에요?", [], _REQ_GROUP):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -251,7 +257,7 @@ class TestNoPatchForGeneralQuestion:
 
         service = ChatService()
         with patch.object(service.client.messages, "stream", return_value=mock_stream):
-            async for _ in service.chat_stream("test-session", "몇 건이에요?", []):
+            async for _ in service.chat_stream("test-session", "몇 건이에요?", [], _REQ_GROUP):
                 pass
 
         details = state.get_detail()
@@ -287,7 +293,7 @@ class TestChatStreamApiError:
         service = ChatService()
         with patch.object(service.client.messages, "stream", return_value=mock_stream):
             events = []
-            async for event in service.chat_stream("test-session", "수정해줘", []):
+            async for event in service.chat_stream("test-session", "수정해줘", [], _REQ_GROUP):
                 events.append(event)
 
         assert len(events) == 1
@@ -302,7 +308,7 @@ class TestChatStreamApiError:
 
         service = ChatService()
         events = []
-        async for event in service.chat_stream("test-session", "수정", []):
+        async for event in service.chat_stream("test-session", "수정", [], _REQ_GROUP):
             events.append(event)
 
         assert len(events) == 1

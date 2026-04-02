@@ -12,6 +12,9 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+# anthropic 패키지가 없는 환경에서는 이 테스트 모듈 전체를 스킵한다
+pytest.importorskip("anthropic", reason="anthropic 패키지 필요 — 설치 없으면 스킵")
+
 import app.state as state
 from app.models.requirement import OriginalRequirement
 from app.services.ai_generate_service import AiGenerateService, _find_obj_end, _sse

@@ -84,9 +84,18 @@ export default function App() {
             </div>
 
             {/* 채팅 패널: generated 단계에서만 우측에 표시 (REQ-004) */}
+            {/* REQ-011: position sticky로 스크롤 시에도 뷰포트 내 고정 */}
             {phase === 'generated' && (
               <div
-                style={{ width: 380, flexShrink: 0 }}
+                style={{
+                  width: 380,
+                  flexShrink: 0,
+                  alignSelf: 'flex-start',
+                  position: 'sticky',
+                  top: 24,
+                  maxHeight: 'calc(100vh - 48px)',
+                  overflowY: 'auto',
+                }}
                 id="chat-area"
                 data-testid="chat-area"
               >

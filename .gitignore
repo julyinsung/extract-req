@@ -6,3 +6,7 @@ dashboard/node_modules/
 
 # HWP 테스트 파일
 *.hwp
+
+# REQ-013: 스냅샷 파일 (런타임 생성, 민감 데이터 포함 가능)
+backend/data/session_snapshot.json
+backend/data/session_snapshot.tmp

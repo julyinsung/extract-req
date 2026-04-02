@@ -22,16 +22,22 @@ const TD_STYLE: React.CSSProperties = {
  * 원본 요구사항 읽기 전용 테이블 컴포넌트.
  * HWP 파싱 결과를 4컬럼(ID/분류/명칭/내용)으로 표시한다 (AC-003-01, REQ-003-01).
  * 원본 데이터는 편집 불가 — 상세요구사항과 시각적으로 명확히 구분된다 (REQ-003-04).
+ *
+ * 행 클릭 시 해당 REQ 그룹을 채팅 컨텍스트로 선택한다 (REQ-004-04).
+ * 선택된 행은 시각적으로 강조된다.
  */
 export function OriginalReqTable() {
   const originalReqs = useAppStore((s) => s.originalReqs)
   const detailReqs = useAppStore((s) => s.detailReqs)
   const sessionId = useAppStore((s) => s.sessionId)
   const isGenerating = useAppStore((s) => s.isGenerating)
+  const selectedReqGroup = useAppStore((s) => s.selectedReqGroup)
   const appendDetailReq = useAppStore((s) => s.appendDetailReq)
   const setIsGenerating = useAppStore((s) => s.setIsGenerating)
   const setPhase = useAppStore((s) => s.setPhase)
   const setError = useAppStore((s) => s.setError)
+  const setSelectedReqGroup = useAppStore((s) => s.setSelectedReqGroup)
+  const setProgress = useAppStore((s) => s.setProgress)
 
   // SSE cleanup 함수 참조 보관 — 컴포넌트 언마운트 또는 중단 시 사용
   const cleanupRef = useRef<(() => void) | null>(null)
@@ -39,24 +45,29 @@ export function OriginalReqTable() {
   /**
    * 상세요구사항 생성 버튼 핸들러.
    * generateDetailStream으로 SSE 연결하여 item 이벤트 수신 시 행을 동적으로 추가한다 (REQ-002).
+   * progress 이벤트 수신 시 진행률 상태를 갱신한다 (REQ-010).
    */
   const handleGenerate = () => {
     if (!sessionId || isGenerating) return
     setError(null)
     setIsGenerating(true)
-    cleanupRef.current = generateDetailStream(sessionId, {
-      onItem: (req) => appendDetailReq(req),
-      onDone: () => {
-        setIsGenerating(false)
-        setPhase('generated')
-        cleanupRef.current = null
-      },
-      onError: (msg) => {
-        setError(msg)
-        setIsGenerating(false)
-        cleanupRef.current = null
-      },
-    })
+    cleanupRef.current = generateDetailStream(
+      sessionId,
+      {
+        onItem: (req) => appendDetailReq(req),
+        onProgress: (current, total, reqId) => setProgress(current, total, reqId),
+        onDone: () => {
+          setIsGenerating(false)
+          setPhase('generated')
+          cleanupRef.current = null
+        },
+        onError: (msg) => {
+          setError(msg)
+          setIsGenerating(false)
+          cleanupRef.current = null
+        },
+      }
+    )
   }
 
   return (
@@ -100,19 +111,31 @@ export function OriginalReqTable() {
                 </td>
               </tr>
             ) : (
-              originalReqs.map((req) => (
-                <tr
-                  key={req.id}
-                  style={{ borderBottom: '1px solid #E2E8F0', background: '#FFFFFF' }}
-                >
-                  {/* 원본 ID 컬럼은 Bold 처리 (디자인 토큰 — req-003-design.md) */}
-                  <td style={{ ...TD_STYLE, fontWeight: 700 }}>{req.id}</td>
-                  <td style={TD_STYLE}>{req.category}</td>
-                  <td style={TD_STYLE}>{req.name}</td>
-                  {/* 내용 컬럼은 줄바꿈 허용 — pre-wrap으로 HWP 원문 줄바꿈 유지 */}
-                  <td style={{ ...TD_STYLE, whiteSpace: 'pre-wrap' }}>{req.content}</td>
-                </tr>
-              ))
+              originalReqs.map((req) => {
+                const isSelected = selectedReqGroup === req.id
+                return (
+                  <tr
+                    key={req.id}
+                    style={{
+                      borderBottom: '1px solid #E2E8F0',
+                      background: isSelected ? '#DBEAFE' : '#FFFFFF',
+                      cursor: 'pointer',
+                      outline: isSelected ? '2px solid #2563EB' : 'none',
+                      transition: 'background 0.2s',
+                    }}
+                    onClick={() => setSelectedReqGroup(req.id)}
+                    data-testid={`original-row-${req.id}`}
+                    aria-selected={isSelected}
+                  >
+                    {/* 원본 ID 컬럼은 Bold 처리 (디자인 토큰 — req-003-design.md) */}
+                    <td style={{ ...TD_STYLE, fontWeight: 700 }}>{req.id}</td>
+                    <td style={TD_STYLE}>{req.category}</td>
+                    <td style={TD_STYLE}>{req.name}</td>
+                    {/* 내용 컬럼은 줄바꿈 허용 — pre-wrap으로 HWP 원문 줄바꿈 유지 */}
+                    <td style={{ ...TD_STYLE, whiteSpace: 'pre-wrap' }}>{req.content}</td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

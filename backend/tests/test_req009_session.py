@@ -1,12 +1,15 @@
 """REQ-009 claude_code_sdk 세션 기반 연속 실행 단위 테스트.
 
-UT-009-01: AIGenerateServiceSDK.generate_stream() — 생성 완료 후 state.get_sdk_session_id()에 SDK session_id가 저장됨
+UT-009-01: AIGenerateServiceSDK.generate_stream() — 생성 완료 후 state.get_sdk_session_id(req_group)에 SDK session_id가 저장됨
 UT-009-02: AIGenerateServiceSDK.generate_stream() — ResultMessage.session_id가 None이면 state 저장 없이 스트림 정상 완료
-UT-009-03: ChatServiceSDK.chat_stream() — state.get_sdk_session_id()가 None이면 resume 없이 query() 호출됨
-UT-009-04: ChatServiceSDK.chat_stream() — state.get_sdk_session_id()가 유효하면 ClaudeAgentOptions(resume=session_id)로 query() 호출됨
-UT-009-05: state.reset_session() — 호출 후 state.get_sdk_session_id()가 None을 반환함
-UT-009-06: state.set_sdk_session_id() / get_sdk_session_id() — 저장한 값이 조회 시 동일하게 반환됨
-UT-009-07: SessionState — sdk_session_id 필드의 기본값이 None임
+UT-009-03: ChatServiceSDK.chat_stream() — state.get_sdk_session_id(req_group)가 None이면 resume 없이 query() 호출됨
+UT-009-04: ChatServiceSDK.chat_stream() — state.get_sdk_session_id(req_group)가 유효하면 ClaudeAgentOptions(resume=session_id)로 query() 호출됨
+UT-009-05: state.reset_session() — 호출 후 sdk_sessions가 빈 딕셔너리 {}로 초기화됨
+UT-009-06: state.set_sdk_session_id(req_group, session_id) / get_sdk_session_id(req_group) — 저장한 값이 조회 시 동일하게 반환됨
+UT-009-07: SessionState — sdk_sessions 필드의 기본값이 빈 딕셔너리 {}임
+UT-009-08: state.set_sdk_session_id — 그룹 A에 저장해도 그룹 B에 영향 없음
+UT-009-09: state.reset_session() — 호출 후 sdk_sessions가 {}로 초기화됨
+UT-009-10: AIGenerateServiceSDK.generate_stream() — 생성 완료 후 get_sdk_session_id(req_group)에 해당 그룹 session_id 저장됨
 """
 
 import json
@@ -103,60 +106,92 @@ def _parse_events(events: list[str]) -> list[dict]:
 
 
 class TestSessionStateDefault:
-    """UT-009-07: SessionState.sdk_session_id 필드 기본값 확인."""
+    """UT-009-07: SessionState.sdk_sessions 필드 기본값 확인."""
 
-    def test_ut_009_07_sdk_session_id_default_is_none(self):
-        """UT-009-07: 새로 생성된 SessionState의 sdk_session_id 기본값이 None이어야 한다."""
+    def test_ut_009_07_sdk_sessions_default_is_empty_dict(self):
+        """UT-009-07: 새로 생성된 SessionState의 sdk_sessions 기본값이 빈 딕셔너리여야 한다."""
         session = SessionState()
-        assert session.sdk_session_id is None, (
-            "SessionState.sdk_session_id의 기본값이 None이어야 한다"
+        assert session.sdk_sessions == {}, (
+            "SessionState.sdk_sessions의 기본값이 빈 딕셔너리여야 한다"
+        )
+
+    def test_ut_009_07_sdk_sessions_instances_are_independent(self):
+        """UT-009-07: 두 SessionState 인스턴스 간 sdk_sessions가 공유되지 않아야 한다."""
+        s1 = SessionState()
+        s2 = SessionState()
+        s1.sdk_sessions["REQ-001"] = "sess-a"
+        assert "REQ-001" not in s2.sdk_sessions, (
+            "Field(default_factory=dict)로 인스턴스 간 딕셔너리 공유가 방지되어야 한다"
         )
 
 
 # ---------------------------------------------------------------------------
-# UT-009-05, UT-009-06: state 함수 단위 테스트
+# UT-009-05, UT-009-06, UT-009-08, UT-009-09: state 함수 단위 테스트
 # ---------------------------------------------------------------------------
 
 
 class TestStateSDKSessionFunctions:
-    """UT-009-05, UT-009-06: get/set_sdk_session_id, reset_session 테스트."""
+    """UT-009-05~09: get/set_sdk_session_id, reset_session 테스트."""
 
     def setup_method(self):
         """각 테스트 전 세션 초기화."""
         state.reset_session()
 
     def test_ut_009_06_set_and_get_sdk_session_id_returns_same_value(self):
-        """UT-009-06: set_sdk_session_id로 저장한 값이 get_sdk_session_id에서 동일하게 반환된다."""
+        """UT-009-06: set_sdk_session_id(req_group, session_id)로 저장한 값이 get_sdk_session_id(req_group)에서 동일하게 반환된다."""
         expected = "sess-test-abc123"
-        state.set_sdk_session_id(expected)
-        actual = state.get_sdk_session_id()
+        state.set_sdk_session_id("REQ-001", expected)
+        actual = state.get_sdk_session_id("REQ-001")
         assert actual == expected, (
             f"저장한 session_id({expected})와 조회된 값({actual})이 일치해야 한다"
         )
 
-    def test_ut_009_05_reset_session_clears_sdk_session_id(self):
-        """UT-009-05: reset_session() 호출 후 get_sdk_session_id()가 None을 반환한다."""
-        state.set_sdk_session_id("sess-xyz789")
-        assert state.get_sdk_session_id() == "sess-xyz789"  # 사전 조건 확인
+    def test_ut_009_05_reset_session_clears_sdk_sessions(self):
+        """UT-009-05: reset_session() 호출 후 sdk_sessions가 빈 딕셔너리로 초기화된다."""
+        state.set_sdk_session_id("REQ-001", "sess-xyz789")
+        assert state.get_sdk_session_id("REQ-001") == "sess-xyz789"  # 사전 조건 확인
 
         state.reset_session()
 
-        assert state.get_sdk_session_id() is None, (
-            "reset_session() 후 sdk_session_id가 None이어야 한다"
+        assert state.get_sdk_session_id("REQ-001") is None, (
+            "reset_session() 후 REQ-001의 session_id가 None이어야 한다"
+        )
+
+    def test_ut_009_09_reset_session_empties_sdk_sessions(self):
+        """UT-009-09: reset_session() 후 sdk_sessions가 빈 딕셔너리여야 한다."""
+        state.set_sdk_session_id("REQ-001", "sess-a")
+        state.set_sdk_session_id("REQ-002", "sess-b")
+
+        state.reset_session()
+
+        session = state.get_session()
+        assert session.sdk_sessions == {}, (
+            "reset_session() 후 sdk_sessions가 빈 딕셔너리여야 한다"
+        )
+
+    def test_ut_009_08_set_group_a_does_not_affect_group_b(self):
+        """UT-009-08: REQ-001에 session_id를 저장해도 REQ-002의 session_id에 영향을 주지 않는다."""
+        state.set_sdk_session_id("REQ-001", "sess-a")
+        state.set_sdk_session_id("REQ-002", "sess-b")
+
+        state.set_sdk_session_id("REQ-001", "sess-a-updated")
+
+        assert state.get_sdk_session_id("REQ-002") == "sess-b", (
+            "REQ-001 업데이트가 REQ-002에 영향을 주지 않아야 한다"
         )
 
     def test_get_sdk_session_id_initial_state_is_none(self):
         """초기 상태(reset 직후)에서 get_sdk_session_id()가 None을 반환한다."""
-        assert state.get_sdk_session_id() is None
+        assert state.get_sdk_session_id("REQ-001") is None
 
 
 # ---------------------------------------------------------------------------
-# UT-009-01, UT-009-02: AIGenerateServiceSDK session_id 저장 테스트
+# UT-009-01, UT-009-02, UT-009-10: AIGenerateServiceSDK session_id 저장 테스트
 # ---------------------------------------------------------------------------
 
 
 class TestAIGenerateServiceSDKSessionId:
-    """UT-009-01, UT-009-02: generate_stream()에서 ResultMessage session_id 저장 테스트."""
+    """UT-009-01, UT-009-02, UT-009-10: generate_stream()에서 ResultMessage session_id 저장 테스트."""
 
     def setup_method(self):
         state.reset_session()
@@ -164,7 +199,7 @@ class TestAIGenerateServiceSDKSessionId:
 
     @pytest.mark.asyncio
     async def test_ut_009_01_generate_stream_saves_session_id_on_completion(self):
-        """UT-009-01: 생성 완료 후 state.get_sdk_session_id()에 SDK session_id가 저장된다."""
+        """UT-009-01: 생성 완료 후 state.get_sdk_session_id(req_group)에 SDK session_id가 저장된다."""
         from app.services.ai_generate_service_sdk import AIGenerateServiceSDK
 
         expected_session_id = "sess-generated-111"
@@ -184,15 +219,15 @@ class TestAIGenerateServiceSDKSessionId:
         service = AIGenerateServiceSDK()
         with patch("app.services.ai_generate_service_sdk.query", return_value=_make_sdk_stream(sdk_messages)):
             events = []
-            async for event in service.generate_stream("test-session"):
+            async for event in service.generate_stream("test-session", "SFR-001"):
                 events.append(event)
 
         parsed = _parse_events(events)
         # 스트림이 done 이벤트로 정상 완료되어야 한다
         assert any(e["type"] == "done" for e in parsed), "done 이벤트가 발행되어야 한다"
 
-        # session_id가 state에 저장되어야 한다
-        actual = state.get_sdk_session_id()
+        # session_id가 해당 그룹 키로 state에 저장되어야 한다
+        actual = state.get_sdk_session_id("SFR-001")
         assert actual == expected_session_id, (
             f"state에 저장된 session_id({actual})가 "
             f"ResultMessage의 session_id({expected_session_id})와 일치해야 한다"
@@ -219,7 +254,7 @@ class TestAIGenerateServiceSDKSessionId:
         service = AIGenerateServiceSDK()
         with patch("app.services.ai_generate_service_sdk.query", return_value=_make_sdk_stream(sdk_messages)):
             events = []
-            async for event in service.generate_stream("test-session"):
+            async for event in service.generate_stream("test-session", "SFR-001"):
                 events.append(event)
 
         parsed = _parse_events(events)
@@ -227,8 +262,41 @@ class TestAIGenerateServiceSDKSessionId:
         assert any(e["type"] == "done" for e in parsed), "done 이벤트가 발행되어야 한다"
 
         # session_id가 None인 경우 state에 저장되지 않아야 한다
-        assert state.get_sdk_session_id() is None, (
-            "ResultMessage.session_id=None이면 state.sdk_session_id가 None으로 유지되어야 한다"
+        assert state.get_sdk_session_id("SFR-001") is None, (
+            "ResultMessage.session_id=None이면 state.sdk_sessions에 저장되지 않아야 한다"
+        )
+
+    @pytest.mark.asyncio
+    async def test_ut_009_10_generate_stream_stores_session_id_per_group(self):
+        """UT-009-10: 생성 완료 후 get_sdk_session_id(req_group)에 해당 그룹의 SDK session_id가 저장된다."""
+        from app.services.ai_generate_service_sdk import AIGenerateServiceSDK
+
+        expected_session_id = "sess-group-specific-001"
+        item_json = json.dumps({
+            "id": "SFR-001-01",
+            "parent_id": "SFR-001",
+            "category": "기능",
+            "name": "UI",
+            "content": "업로드 기능",
+        }, ensure_ascii=False)
+
+        sdk_messages = [
+            _make_sdk_assistant_message(f"[{item_json}]"),
+            _make_sdk_result_message("", session_id=expected_session_id),
+        ]
+
+        service = AIGenerateServiceSDK()
+        with patch("app.services.ai_generate_service_sdk.query", return_value=_make_sdk_stream(sdk_messages)):
+            events = []
+            async for event in service.generate_stream("test-session", "SFR-001"):
+                events.append(event)
+
+        # 다른 그룹에는 저장되지 않아야 한다
+        assert state.get_sdk_session_id("SFR-002") is None, (
+            "SFR-001 생성 결과가 SFR-002에 저장되지 않아야 한다"
+        )
+        assert state.get_sdk_session_id("SFR-001") == expected_session_id, (
+            "SFR-001의 session_id가 올바르게 저장되어야 한다"
         )
 
 
@@ -247,12 +315,12 @@ class TestChatServiceSDKResume:
 
     @pytest.mark.asyncio
     async def test_ut_009_03_chat_stream_calls_query_without_resume_when_no_session_id(self):
-        """UT-009-03: state.get_sdk_session_id()가 None이면 resume 없이 query()가 호출된다."""
+        """UT-009-03: state.get_sdk_session_id(req_group)가 None이면 resume 없이 query()가 호출된다."""
         from app.services.chat_service_sdk import ChatServiceSDK
         from claude_agent_sdk import ClaudeAgentOptions
 
-        # sdk_session_id가 None인 상태 (setup_method에서 reset_session 호출됨)
-        assert state.get_sdk_session_id() is None
+        # SFR-001 그룹의 sdk_session_id가 None인 상태 (setup_method에서 reset_session 호출됨)
+        assert state.get_sdk_session_id("SFR-001") is None
 
         captured_options: list[ClaudeAgentOptions] = []
 
@@ -267,7 +335,7 @@ class TestChatServiceSDKResume:
         service = ChatServiceSDK()
         with patch("app.services.chat_service_sdk.query", side_effect=_mock_query):
             events = []
-            async for event in service.chat_stream("test-session", "수정해줘", []):
+            async for event in service.chat_stream("test-session", "수정해줘", [], "SFR-001"):
                 events.append(event)
 
         assert len(captured_options) == 1, "query()가 정확히 1회 호출되어야 한다"
@@ -281,13 +349,13 @@ class TestChatServiceSDKResume:
 
     @pytest.mark.asyncio
     async def test_ut_009_04_chat_stream_calls_query_with_resume_when_session_id_exists(self):
-        """UT-009-04: state.get_sdk_session_id()가 유효한 값이면 ClaudeAgentOptions(resume=session_id)로 query()가 호출된다."""
+        """UT-009-04: state.get_sdk_session_id(req_group)가 유효한 값이면 ClaudeAgentOptions(resume=session_id)로 query()가 호출된다."""
         from app.services.chat_service_sdk import ChatServiceSDK
         from claude_agent_sdk import ClaudeAgentOptions
 
         stored_session_id = "sess-abc123"
-        state.set_sdk_session_id(stored_session_id)
-        assert state.get_sdk_session_id() == stored_session_id  # 사전 조건 확인
+        state.set_sdk_session_id("SFR-001", stored_session_id)
+        assert state.get_sdk_session_id("SFR-001") == stored_session_id  # 사전 조건 확인
 
         captured_options: list[ClaudeAgentOptions] = []
 
@@ -302,7 +370,7 @@ class TestChatServiceSDKResume:
         service = ChatServiceSDK()
         with patch("app.services.chat_service_sdk.query", side_effect=_mock_query):
             events = []
-            async for event in service.chat_stream("test-session", "수정해줘", []):
+            async for event in service.chat_stream("test-session", "수정해줘", [], "SFR-001"):
                 events.append(event)
 
         assert len(captured_options) == 1, "query()가 정확히 1회 호출되어야 한다"

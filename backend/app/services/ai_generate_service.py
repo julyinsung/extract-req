@@ -9,8 +9,6 @@ import json
 import os
 from typing import AsyncGenerator
 
-from anthropic import AsyncAnthropic, APIError
-
 import app.state as state
 from app.models.requirement import DetailRequirement
 
@@ -33,25 +31,35 @@ class AiGenerateService:
     """Claude API 스트리밍을 통한 상세요구사항 생성 서비스."""
 
     def __init__(self):
+        # 지연 import — anthropic 패키지가 없는 환경에서 순수 유틸 함수의 import를 허용한다.
+        # 테스트에서 client를 mock으로 교체하므로 초기화 실패 시 None으로 설정한다.
         # SEC-002-01: API 키를 환경변수에서 주입
-        self.client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        try:
+            from anthropic import AsyncAnthropic
+            self.client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        except ImportError:
+            self.client = None  # type: ignore[assignment]
 
-    async def generate_stream(self, session_id: str) -> AsyncGenerator[str, None]:
+    async def generate_stream(self, session_id: str, req_group: str = "") -> AsyncGenerator[str, None]:
         """원본 요구사항을 Claude API로 상세요구사항으로 분해하여 SSE 스트림으로 발행한다.
 
         스트리밍 청크를 누적하다가 완전한 JSON 객체 경계를 감지하면 즉시 파싱·발행한다.
         완료 후 state에 전체 목록을 저장한다.
+        parent_id 그룹 완료 시 progress 이벤트를 발행한다 (REQ-010-01).
 
         Args:
             session_id: 클라이언트 세션 식별자 (현재 인메모리 싱글턴이므로 조회에만 사용)
+            req_group: 공통 시그니처를 위한 파라미터 (방식 B) — 이 경로에서는 사용하지 않는다
 
         Yields:
-            SSE 형식 문자열 — type이 "item", "done", "error" 중 하나
+            SSE 형식 문자열 — type이 "item", "progress", "done", "error" 중 하나
         """
         originals = state.get_original()
         if not originals:
             yield _sse({"type": "error", "message": "파싱된 요구사항이 없습니다."})
             return
+
+        total_originals = len(originals)
 
         # SEC-002-02: JSON 직렬화로 전달하여 content 내 임의 지시문이 프롬프트에 병합되는 것을 차단
         user_message = (
@@ -63,6 +71,9 @@ class AiGenerateService:
         buf = ""
         # parent_id별 생성 순서를 추적하여 ID 채번 보정에 사용
         order_counters: dict[str, int] = {}
+        # progress 추적: 완료된 parent_id 집합 및 마지막 처리 parent_id
+        completed_parents: set[str] = set()
+        last_parent_id: str | None = None
 
         try:
             async with self.client.messages.stream(
@@ -87,13 +98,35 @@ class AiGenerateService:
                         event = _parse_obj(obj_str, order_counters, details)
                         if event:
                             yield event
+                            # REQ-010-01: parent_id 전환 감지 시 이전 그룹 progress 발행
+                            if details:
+                                current_parent = details[-1].parent_id
+                                if last_parent_id is not None and last_parent_id != current_parent:
+                                    if last_parent_id not in completed_parents:
+                                        completed_parents.add(last_parent_id)
+                                        yield _sse({
+                                            "type": "progress",
+                                            "current": len(completed_parents),
+                                            "total": total_originals,
+                                            "req_id": last_parent_id,
+                                        })
+                                last_parent_id = current_parent
+
+            # 마지막 parent_id progress 발행 (전환이 없었을 경우 포함)
+            if last_parent_id and last_parent_id not in completed_parents:
+                completed_parents.add(last_parent_id)
+                yield _sse({
+                    "type": "progress",
+                    "current": len(completed_parents),
+                    "total": total_originals,
+                    "req_id": last_parent_id,
+                })
 
             state.set_detail(details)
             yield _sse({"type": "done", "total": len(details)})
 
-        except APIError as e:
-            yield _sse({"type": "error", "message": f"Claude API 오류: {str(e)}"})
         except Exception as e:
+            # anthropic.APIError는 Exception을 상속하므로 공통 핸들링 가능
             yield _sse({"type": "error", "message": f"생성 실패: {str(e)}"})
 
 

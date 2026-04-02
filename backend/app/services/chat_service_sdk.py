@@ -31,12 +31,11 @@ import app.state as state
 from app.models.api import ChatMessage
 from app.services.chat_service import (
     MAX_MESSAGE_LENGTH,
+    _TAG_STRIP_RE,
     _build_system_prompt,
     _process_patches,
+    _process_replace,
 )
-
-# PATCH 태그를 실시간 스트리밍에서 제거하기 위한 패턴 (chat_service.py와 동일)
-_PATCH_STRIP_RE = re.compile(r"<PATCH>.*?</PATCH>", re.DOTALL)
 _SENTINEL = object()
 
 
@@ -75,7 +74,7 @@ class ChatServiceSDK:
     """
 
     async def chat_stream(
-        self, session_id: str, message: str, history: list[ChatMessage]
+        self, session_id: str, message: str, history: list[ChatMessage], req_group: str
     ) -> AsyncGenerator[str, None]:
         """채팅 메시지와 히스토리를 받아 claude-agent-sdk 응답을 SSE로 변환한다.
 
@@ -83,27 +82,30 @@ class ChatServiceSDK:
             session_id: 현재 세션 ID (상태 조회용)
             message: 사용자 채팅 메시지
             history: 클라이언트가 유지하는 이전 대화 목록
+            req_group: 선택된 REQ 그룹 ID — 컨텍스트 필터링에 사용 (REQ-004-05)
 
         Yields:
-            SSE 형식 문자열 (type: text | patch | done | error)
+            SSE 형식 문자열 (type: text | patch | replace | done | error)
         """
         # SEC-007-02: 서버 측 메시지 길이 검증 (ChatService와 동일한 상수 재사용)
         if len(message) > MAX_MESSAGE_LENGTH:
             yield _sse({"type": "error", "message": f"메시지는 {MAX_MESSAGE_LENGTH}자를 초과할 수 없습니다."})
             return
 
-        details = state.get_detail()
-        if not details:
-            yield _sse({"type": "error", "message": "상세요구사항이 없습니다. 먼저 생성해주세요."})
+        # REQ-004-05: 선택된 그룹의 원본+상세항목만 컨텍스트로 사용
+        original_req = state.get_original_by_group(req_group)
+        if original_req is None:
+            yield _sse({"type": "error", "message": f"원본 요구사항을 찾을 수 없습니다: {req_group}"})
             return
 
-        system_prompt = _build_system_prompt(details)
+        filtered_details = state.get_detail_by_group(req_group)
+        system_prompt = _build_system_prompt(original_req, filtered_details)
         full_prompt = _serialize_conversation(system_prompt, history, message)
 
         try:
             cli_path = shutil.which("claude")
             # REQ-009-02: 저장된 sdk_session_id가 있으면 동일 세션을 이어받는다.
-            sdk_session_id = state.get_sdk_session_id()
+            sdk_session_id = state.get_sdk_session_id(req_group)
             if sdk_session_id:
                 options = ClaudeAgentOptions(
                     allowed_tools=[],
@@ -141,19 +143,21 @@ class ChatServiceSDK:
                         if isinstance(block, TextBlock):
                             chunk = block.text
                             full_text += chunk
-                            clean_chunk = _PATCH_STRIP_RE.sub("", chunk)
+                            clean_chunk = _TAG_STRIP_RE.sub("", chunk)
                             if clean_chunk:
                                 yield _sse({"type": "text", "delta": clean_chunk})
                 elif isinstance(sdk_message, ResultMessage):
                     if sdk_message.result and sdk_message.result not in full_text:
                         chunk = sdk_message.result
                         full_text += chunk
-                        clean_chunk = _PATCH_STRIP_RE.sub("", chunk)
+                        clean_chunk = _TAG_STRIP_RE.sub("", chunk)
                         if clean_chunk:
                             yield _sse({"type": "text", "delta": clean_chunk})
 
-            # 스트리밍 완료 후 전체 응답에서 PATCH 태그를 일괄 처리한다
+            # 스트리밍 완료 후 전체 응답에서 PATCH → REPLACE 순으로 일괄 처리한다
             for event in _process_patches(full_text):
+                yield event
+            for event in _process_replace(full_text, req_group):
                 yield event
             yield _sse({"type": "done"})
 

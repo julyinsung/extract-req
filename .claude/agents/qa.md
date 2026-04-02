@@ -129,6 +129,34 @@ description: "QA 엔지니어. Gate 3에서 테스트 계획을 수립하고, Ga
     ### 🟡 개선 권고
     1. [파일:라인] — [설명]
 
+## TRACEABILITY.md 업데이트 의무
+
+### Gate 3 완료 시
+
+**반드시** `docs/TRACEABILITY.md`의 `TST-ID` 컬럼을 업데이트한다.
+
+- 각 REQ-NNN-NN 행에 매핑된 TST-ID를 쉼표로 구분하여 기입한다
+- Security 테스트(TST-SEC-NN)도 포함한다
+
+```markdown
+| REQ-001-01 | req-001-design.md | TST-001-01, TST-SEC-01 | - | 미구현 |
+```
+
+**check-trace는 TRACEABILITY.md의 tst_ids 컬럼 등록 여부를 검사한다. 미등록 시 Gate 3 완료 불가.**
+
+### Gate 4 완료 시
+
+**반드시** `docs/TRACEABILITY.md`의 `리뷰 문서` 컬럼과 `상태` 컬럼을 업데이트한다.
+
+- 각 REQ-NNN-NN 행의 `리뷰 문서` 컬럼을 실제 리뷰 파일명으로 채운다
+- QA Pass 시 상태를 `구현완료`로, Fail 시 `수정예정`으로 변경한다
+
+```markdown
+| REQ-001-01 | req-001-design.md | TST-001-01 | req-001-review.md | 구현완료 |
+```
+
+**check-trace는 리뷰 파일 내에 REQ-ID가 실제로 포함되어 있는지 grep으로 검사한다.**
+
 ## 팀 통신 프로토콜
 
 - **PM으로부터**: 인수 기준(AC)과 우선순위를 수신한다

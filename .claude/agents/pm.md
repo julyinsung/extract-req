@@ -77,6 +77,24 @@ description: "프로젝트 매니저. 요구사항을 수집·분석하고 REQ-I
     ### AC-001-02: [인수 기준 제목]
     - ...
 
+## TRACEABILITY.md 업데이트 의무
+
+Gate 1 완료 시 **반드시** `docs/TRACEABILITY.md`를 업데이트한다.
+
+- 신규 REQ 추가 시: 각 REQ-NNN-NN 행을 추가한다 (설계/테스트/리뷰 컬럼은 `-`로 둔다)
+- REQ 수정 시: 해당 행 상태를 `수정예정`으로 변경한다
+- REQ 삭제 시: 해당 행 상태를 `삭제됨`으로 변경한다 (행은 유지)
+
+> TRACEABILITY.md가 없으면 `docs/TRACEABILITY.md`를 새로 작성한다. 양식은 `docs/CHANGE_PROCESS.md`를 참조한다.
+
+```markdown
+| REQ-ID | 설계 문서 | TST-ID | 리뷰 문서 | 상태 |
+|--------|---------|--------|---------|------|
+| REQ-001-01 | - | - | - | 미구현 |
+```
+
+**check-trace는 TRACEABILITY.md 행 등록 여부를 검사한다. 미등록 시 Gate 1 완료 불가.**
+
 ## 팀 통신 프로토콜
 
 - **Architect에게**: 확정된 요구사항과 기술 스택을 전달한다

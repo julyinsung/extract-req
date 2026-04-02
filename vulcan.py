@@ -157,6 +157,41 @@ def parse_requirements(project_dir="."):
     return group_reqs, detail_reqs, defined_acs, ac_delegates
 
 
+def parse_traceability(project_dir="."):
+    """TRACEABILITY.md를 파싱하여 REQ-ID별 추적 정보를 반환합니다.
+    Returns: dict[req_id] = {"design": str, "tst_ids": list, "review": str, "status": str}
+    TRACEABILITY.md가 없으면 빈 dict 반환 (하위 호환성 유지).
+    """
+    path = os.path.join(project_dir, "docs", "TRACEABILITY.md")
+    if not os.path.exists(path):
+        return {}
+
+    result = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip().startswith('|'):
+                continue
+            cols = [c.strip() for c in line.split('|')]
+            # | REQ-ID | 설계문서 | TST-ID | 리뷰문서 | 상태 |
+            if len(cols) < 6:
+                continue
+            req_id = cols[1]
+            if not re.match(r'REQ-\d{3}-\d{2}', req_id):
+                continue
+            design  = cols[2] if cols[2] != '-' else ''
+            tst_raw = cols[3] if cols[3] != '-' else ''
+            review  = cols[4] if cols[4] != '-' else ''
+            status  = cols[5] if len(cols) > 5 else ''
+            tst_ids = [t.strip() for t in tst_raw.split(',') if t.strip() and t.strip() != '-']
+            result[req_id] = {
+                "design": design,
+                "tst_ids": tst_ids,
+                "review": review,
+                "status": status,
+            }
+    return result
+
+
 def parse_test_plan(project_dir="."):
     """TEST_PLAN.md에서 TST-ID → REQ-ID 매핑을 파싱합니다."""
     path = os.path.join(project_dir, "docs", "03-test-plan", "TEST_PLAN.md")
@@ -219,9 +254,9 @@ def check_trace(project_dir="."):
 
     group_reqs, detail_reqs, defined_acs, ac_delegates = parse_requirements(project_dir)
 
-    # ── Gate 1: REQ-ID별 AC 존재 여부
+    # ── Gate 1: REQ-ID별 AC 존재 여부 + TRACEABILITY.md 행 등록 여부
     if current_gate == "gate1":
-        print("  Gate 1 검사: 인수 기준(AC) 정의 여부")
+        print("  Gate 1 검사 (1): 인수 기준(AC) 정의 여부")
         if not detail_reqs:
             issues.append("REQUIREMENTS.md에 REQ-NNN-NN 형식의 요구사항이 없습니다.")
         for req in sorted(detail_reqs):
@@ -233,39 +268,114 @@ def check_trace(project_dir="."):
             else:
                 issues.append(f"  X {req} - AC 미정의")
 
-    # ── Gate 2: REQ 그룹별 설계 파일 존재 여부
-    if current_gate == "gate2":
-        print("  Gate 2 검사: REQ 그룹별 설계 파일 존재 여부")
-        design_dir = os.path.join(project_dir, "docs", "02-design")
-        for group in sorted(group_reqs):
-            filename = f"{group.lower()}-design.md"
-            filepath = os.path.join(design_dir, filename)
-            if os.path.exists(filepath):
-                print(f"  O {group} - {filename} 확인")
-            else:
-                issues.append(f"  X {group} - docs/02-design/{filename} 없음")
+        print("\n  Gate 1 검사 (2): TRACEABILITY.md 행 등록 여부")
+        traceability = parse_traceability(project_dir)
+        if not traceability:
+            issues.append("  X TRACEABILITY.md 없음 — PM이 작성해야 합니다")
+        else:
+            for req in sorted(detail_reqs):
+                if req in traceability:
+                    print(f"  O {req} - TRACEABILITY.md 행 확인")
+                else:
+                    issues.append(f"  X {req} - TRACEABILITY.md에 행 미등록")
 
-    # ── Gate 3: 모든 REQ-NNN-NN에 TST-ID 매핑 여부
+    # ── Gate 2: 설계 파일 내 REQ-ID 포함 여부 (TRACEABILITY.md 우선, 없으면 그룹 파일 fallback)
+    if current_gate == "gate2":
+        design_dir = os.path.join(project_dir, "docs", "02-design")
+        traceability = parse_traceability(project_dir)
+
+        if traceability:
+            print("  Gate 2 검사: TRACEABILITY.md 기반 설계 파일 내 REQ-ID 포함 확인")
+            for req in sorted(detail_reqs):
+                info = traceability.get(req)
+                if not info or not info["design"]:
+                    issues.append(f"  X {req} - TRACEABILITY.md에 설계 문서 미등록")
+                    continue
+                filepath = os.path.join(design_dir, info["design"])
+                if not os.path.exists(filepath):
+                    issues.append(f"  X {req} - {info['design']} 파일 없음")
+                    continue
+                with open(filepath, encoding="utf-8") as f:
+                    content = f.read()
+                if req in content:
+                    print(f"  O {req} - {info['design']} 내 ID 확인")
+                else:
+                    issues.append(f"  X {req} - {info['design']} 안에 {req} 없음")
+        else:
+            print("  Gate 2 검사: REQ 그룹별 설계 파일 존재 여부 (TRACEABILITY.md 없음 — fallback)")
+            for group in sorted(group_reqs):
+                filename = f"{group.lower()}-design.md"
+                filepath = os.path.join(design_dir, filename)
+                if os.path.exists(filepath):
+                    print(f"  O {group} - {filename} 확인")
+                else:
+                    issues.append(f"  X {group} - docs/02-design/{filename} 없음")
+
+    # ── Gate 3: 모든 REQ-NNN-NN에 TST-ID 매핑 여부 + TRACEABILITY.md tst_ids 등록 여부
     if current_gate == "gate3":
-        print("  Gate 3 검사: REQ-ID별 TST-ID 커버리지")
+        print("  Gate 3 검사 (1): REQ-ID별 TST-ID 커버리지")
         covered = parse_test_plan(project_dir)
+        traceability = parse_traceability(project_dir)
         for req in sorted(detail_reqs):
+            # TRACEABILITY.md에서 삭제됨 상태는 검사 제외
+            if traceability.get(req, {}).get("status") == "삭제됨":
+                print(f"  - {req} - 삭제됨 (검사 제외)")
+                continue
             if req in covered:
                 print(f"  O {req} - TST 매핑 확인")
             else:
                 issues.append(f"  X {req} - TEST_PLAN.md에 TST 매핑 없음")
 
-    # ── Gate 4: REQ 그룹별 리뷰 파일 + TST-ID 실행 상태
-    if current_gate == "gate4":
-        print("  Gate 4 검사 (1): REQ 그룹별 리뷰 파일 존재 여부")
-        review_dir = os.path.join(project_dir, "docs", "04-review")
-        for group in sorted(group_reqs):
-            filename = f"{group.lower()}-review.md"
-            filepath = os.path.join(review_dir, filename)
-            if os.path.exists(filepath):
-                print(f"  O {group} - {filename} 확인")
+        print("\n  Gate 3 검사 (2): TRACEABILITY.md tst_ids 컬럼 등록 여부")
+        for req in sorted(detail_reqs):
+            info = traceability.get(req, {})
+            if info.get("status") == "삭제됨":
+                continue
+            tst_ids = info.get("tst_ids", [])
+            if tst_ids:
+                print(f"  O {req} - TST-ID {', '.join(tst_ids)} 등록 확인")
             else:
-                issues.append(f"  X {group} - docs/04-review/{filename} 없음")
+                issues.append(f"  X {req} - TRACEABILITY.md에 tst_ids 미등록")
+
+    # ── Gate 4: 리뷰 파일 + TST-ID 실행 상태
+    if current_gate == "gate4":
+        review_dir = os.path.join(project_dir, "docs", "04-review")
+        traceability = parse_traceability(project_dir)
+
+        if traceability:
+            print("  Gate 4 검사 (1): TRACEABILITY.md 기반 리뷰 파일 내 REQ-ID 포함 확인")
+            file_contents = {}  # 파일별 내용 캐시 (중복 읽기 방지)
+            for req in sorted(detail_reqs):
+                info = traceability.get(req, {})
+                status = info.get("status", "")
+                # 미구현/삭제됨은 리뷰 검사 제외
+                if status in ("미구현", "삭제됨"):
+                    print(f"  - {req} - {status} (리뷰 검사 제외)")
+                    continue
+                review = info.get("review", "")
+                if not review:
+                    issues.append(f"  X {req} - TRACEABILITY.md에 리뷰 문서 미등록")
+                    continue
+                filepath = os.path.join(review_dir, review)
+                if not os.path.exists(filepath):
+                    issues.append(f"  X {req} - {review} 파일 없음")
+                    continue
+                if review not in file_contents:
+                    with open(filepath, encoding="utf-8") as f:
+                        file_contents[review] = f.read()
+                if req in file_contents[review]:
+                    print(f"  O {req} - {review} 내 ID 확인")
+                else:
+                    issues.append(f"  X {req} - {review} 안에 {req} 없음")
+        else:
+            print("  Gate 4 검사 (1): REQ 그룹별 리뷰 파일 존재 여부 (TRACEABILITY.md 없음 — fallback)")
+            for group in sorted(group_reqs):
+                filename = f"{group.lower()}-review.md"
+                filepath = os.path.join(review_dir, filename)
+                if os.path.exists(filepath):
+                    print(f"  O {group} - {filename} 확인")
+                else:
+                    issues.append(f"  X {group} - docs/04-review/{filename} 없음")
 
         print("\n  Gate 4 검사 (2): TST-ID 실행 상태")
         tst_results = parse_test_plan_status(project_dir)

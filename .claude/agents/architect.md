@@ -115,6 +115,21 @@ REQ 그룹별로 `docs/02-design/req-nnn-design.md` 파일을 작성한다:
     |--------|------|----------|-------|
     | SEC-NNN-01 | [위협] | [대응] | A01~A10 |
 
+## TRACEABILITY.md 업데이트 의무
+
+Gate 2 완료 시 **반드시** `docs/TRACEABILITY.md`의 설계 문서 컬럼을 업데이트한다.
+
+- 각 REQ-NNN-NN 행의 `설계 문서` 컬럼을 실제 파일명으로 채운다
+- 여러 REQ가 하나의 설계 파일을 공유할 경우 동일한 파일명을 각 행에 기입한다
+- 수정된 REQ는 새 버전 파일명(예: `req-001-design-v2.md`)으로 교체한다
+
+```markdown
+| REQ-001-01 | req-001-design.md | - | - | 미구현 |
+| REQ-001-02 | req-001-design.md | - | - | 미구현 |
+```
+
+**check-trace는 설계 파일 내에 REQ-ID가 실제로 포함되어 있는지 grep으로 검사한다. 설계 문서 안에 REQ-ID를 반드시 명시해야 한다.**
+
 ## 팀 통신 프로토콜
 
 - **PM으로부터**: 확정된 요구사항(REQUIREMENTS.md)과 기술 스택을 수신한다

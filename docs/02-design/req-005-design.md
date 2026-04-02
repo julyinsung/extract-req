@@ -4,7 +4,20 @@
 
 ---
 
-## API 엔드포인트
+## 변경 파일 요약
+
+| 담당 | 파일 | 변경 유형 |
+|------|------|----------|
+| **백엔드** | `backend/app/routers/download.py` | 신규 |
+| **백엔드** | `backend/app/services/excel_export_service.py` | 신규 |
+| **프론트엔드** | `frontend/src/components/DownloadBar.tsx` | 신규 |
+| **프론트엔드** | `frontend/src/api/index.ts` | 수정 (다운로드 URL 함수 추가) |
+
+---
+
+## 공통 인터페이스 (백엔드 ↔ 프론트엔드)
+
+### API 엔드포인트
 
 | Method | Path | 설명 | 쿼리 파라미터 | 응답 |
 |--------|------|------|------------|------|
@@ -17,6 +30,7 @@ Content-Disposition: attachment; filename="requirements_original_20260401_120000
 ```
 
 에러:
+
 | HTTP | 코드 | 상황 |
 |------|------|------|
 | 404 | `SESSION_NOT_FOUND` | 세션 없음 |
@@ -24,23 +38,7 @@ Content-Disposition: attachment; filename="requirements_original_20260401_120000
 
 ---
 
-## 백엔드 모듈
-
-### `app/services/excel_export_service.py`
-
-```python
-class ExcelExportService:
-    def export(self, session_id: str, stage: Literal[1, 2]) -> bytes:
-        """SessionStore 데이터 → openpyxl → .xlsx 바이너리 반환."""
-```
-
-- `stage=1`: `OriginalRequirement[]`만 변환
-- `stage=2`: `OriginalRequirement[]` + `DetailRequirement[]` 인터리빙 레이아웃
-- `stage=2` 요청 시 detail 미생성이면 `DetailNotGeneratedError` 발생
-
----
-
-## 엑셀 출력 스펙
+## 엑셀 출력 스펙 (공통 참조)
 
 ### 1단계 엑셀 — 원본 요구사항만
 
@@ -54,24 +52,19 @@ class ExcelExportService:
 | C | 요구사항 명칭 | `OriginalRequirement.name` |
 | D | 요구사항 내용 | `OriginalRequirement.content` |
 
-```
-행 1: 헤더 (굵게, 배경색 #4472C4, 글자색 흰색)
-행 2~N: 데이터 (order_index 오름차순)
-```
-
 ### 2단계 엑셀 — 원본 + 상세 통합
 
 - 파일명: `requirements_full_{YYYYMMDD_HHMMSS}.xlsx`
 - 시트명: `상세요구사항`
-- 레이아웃: **원본 셀 병합** — 원본 요구사항 열(A-D)은 상세 행 수만큼 세로 병합, 상세 요구사항은 우측 열(E-G)에 행별로 배치
+- 레이아웃: **원본 셀 병합** — 원본 요구사항 열(A-D)은 상세 행 수만큼 세로 병합
 
 | 열 | 헤더 | 설명 |
 |----|------|------|
-| A | 원본 요구사항 ID | `SFR-001` — 상세 행 수만큼 셀 병합 |
-| B | 분류 | 원본 분류 — 상세 행 수만큼 셀 병합 |
-| C | 원본 명칭 | 원본 명칭 — 상세 행 수만큼 셀 병합 |
-| D | 원본 내용 | 원본 내용 — 상세 행 수만큼 셀 병합 |
-| E | 상세 요구사항 ID | `SFR-001-01`, `SFR-001-02` ... |
+| A | 원본 요구사항 ID | 상세 행 수만큼 셀 병합 |
+| B | 분류 | 상세 행 수만큼 셀 병합 |
+| C | 원본 명칭 | 상세 행 수만큼 셀 병합 |
+| D | 원본 내용 | 상세 행 수만큼 셀 병합 |
+| E | 상세 요구사항 ID | `REQ-001-01`, `REQ-001-02` ... |
 | F | 상세 명칭 | AI 생성 상세 명칭 |
 | G | 상세 내용 | AI 생성 상세 내용 (수정 반영) |
 
@@ -79,31 +72,9 @@ class ExcelExportService:
 ```
 행 1: 헤더
 행 2: SFR-001 | 기능 | 지원포털 기능 개선 | ... | SFR-001-01 | 이용자 관리 UI | ...
-행 3: ↑병합   | ↑병합 | ↑병합             | ↑병합 | SFR-001-02 | 컨텐츠 관리   | ...
-행 4: ↑병합   | ↑병합 | ↑병합             | ↑병합 | SFR-001-03 | 보안키 갱신   | ...
-행 5: MHR-001 | 유지관리 | 유지관리 인력  | ... | MHR-001-01 | PM 역할 정의  | ...
-행 6: ↑병합   | ↑병합 | ↑병합             | ↑병합 | MHR-001-02 | 테스트 운영   | ...
+행 3: ↑병합   | ↑병합 | ↑병합            | ↑병합 | SFR-001-02 | 컨텐츠 관리   | ...
+행 4: ↑병합   | ↑병합 | ↑병합            | ↑병합 | SFR-001-03 | 보안키 갱신   | ...
 ```
-
-병합 구현 (`openpyxl`):
-```python
-# 원본 SFR-001이 상세 3개(행 2~4)를 가질 경우
-ws.merge_cells(f'A2:A4')  # 원본 ID 병합
-ws.merge_cells(f'B2:B4')  # 분류 병합
-ws.merge_cells(f'C2:C4')  # 명칭 병합
-ws.merge_cells(f'D2:D4')  # 내용 병합
-```
-
-행/셀 색상:
-```
-헤더 행:                  배경색 #4472C4, 글자색 흰색
-원본 열(A-D):             배경색 #D9E1F2 (연한 파랑)
-상세 열(E-G):             배경색 흰색
-수정된 상세 행(is_modified=True): G열 배경색 #FFF2CC (연한 노랑)
-```
-
-> **화면 UI와의 차이**: 화면에서는 원본/상세를 각각 별도 행으로 표시(구현 단순),
-> 엑셀 다운로드 시에만 원본 셀 병합 레이아웃으로 변환한다.
 
 ### 공통 포맷 규칙
 
@@ -113,31 +84,71 @@ ws.merge_cells(f'D2:D4')  # 내용 병합
 | 헤더 행 고정 | `freeze_panes = "A2"` |
 | 열 너비 | A:8, B:15, C:15, D:12, E:30, F:60 (문자 단위) |
 | 내용 열 줄바꿈 | `wrap_text=True` |
+| 헤더 배경색 | `#4472C4`, 글자색 흰색 |
+| 원본 열(A-D) 배경색 | `#D9E1F2` (연한 파랑) |
+| 수정된 상세 행(is_modified=True) | G열 배경색 `#FFF2CC` (연한 노랑) |
 | 다운로드 방식 | FastAPI `StreamingResponse` |
 
 ---
 
-## 프론트엔드 다운로드 처리
+## 백엔드 설계
+
+### 모듈: `backend/app/services/excel_export_service.py`
+
+```python
+class ExcelExportService:
+    def export(self, session_id: str, stage: Literal[1, 2]) -> bytes:
+        """state 데이터 → openpyxl → .xlsx 바이너리 반환."""
+```
+
+- `stage=1`: `OriginalRequirement[]`만 변환
+- `stage=2`: `OriginalRequirement[]` + `DetailRequirement[]` 인터리빙 레이아웃
+- `stage=2` 요청 시 detail 미생성이면 `DetailNotGeneratedError` 발생
+
+병합 구현 (`openpyxl`):
+```python
+# 원본 SFR-001이 상세 3개(행 2~4)를 가질 경우
+ws.merge_cells('A2:A4')  # 원본 ID 병합
+ws.merge_cells('B2:B4')  # 분류 병합
+ws.merge_cells('C2:C4')  # 명칭 병합
+ws.merge_cells('D2:D4')  # 내용 병합
+```
+
+### 단위 테스트 (백엔드)
+
+| UT-ID | 대상 | 검증 내용 |
+|-------|------|---------|
+| UT-005-01 | `ExcelExportService.export(stage=1)` | 4컬럼 xlsx, 원본 행 수 일치 |
+| UT-005-02 | `ExcelExportService.export(stage=2)` | 7컬럼 xlsx, 원본+상세 인터리빙 순서 확인 |
+| UT-005-03 | `GET /api/v1/download` | Content-Type xlsx 헤더 확인 |
+| UT-005-04 | 수정 반영 | `is_modified=True` 행 → 2단계 엑셀에 수정값 포함 |
+| UT-005-05 | stage=2 미생성 | detailReqs 없을 때 422 반환 |
+
+---
+
+## 프론트엔드 설계
+
+### 컴포넌트: `frontend/src/components/DownloadBar.tsx`
+
+**책임**: 1단계/2단계 다운로드 버튼 렌더링 및 활성화 조건 관리
+
+- 1단계 버튼: `originalReqs.length > 0` 일 때만 활성화
+- 2단계 버튼: `detailReqs.length > 0` 일 때만 활성화
+
+### API 함수: `frontend/src/api/index.ts`
 
 ```typescript
-// src/api/index.ts
 function getDownloadUrl(sessionId: string, stage: 1 | 2): string {
   return `/api/v1/download?session_id=${sessionId}&stage=${stage}`
 }
 ```
 
 - `<a href={url} download>` 태그로 GET 요청 — Blob 방식 대비 메모리 부담 없음
-- 1단계 버튼: `originalReqs.length > 0` 일 때만 활성화
-- 2단계 버튼: `detailReqs.length > 0` 일 때만 활성화
+- 브라우저가 직접 파일 다운로드 처리
 
----
-
-## UT-ID
+### 단위 테스트 (프론트엔드)
 
 | UT-ID | 대상 | 검증 내용 |
 |-------|------|---------|
-| UT-005-01 | `ExcelExportService.export(stage=1)` | 4컬럼 xlsx, 원본 행 수 일치 |
-| UT-005-02 | `ExcelExportService.export(stage=2)` | 6컬럼 xlsx, 원본+상세 인터리빙 순서 확인 |
-| UT-005-03 | `GET /api/v1/download` | Content-Type xlsx 헤더 확인 |
-| UT-005-04 | 수정 반영 | `is_modified=True` 행 → 2단계 엑셀에 수정값 포함 |
-| UT-005-05 | stage=2 미생성 | detailReqs 없을 때 422 반환 |
+| UT-005-06 | `DownloadBar` | `originalReqs` 비어있을 때 1단계 버튼 비활성화 |
+| UT-005-07 | `DownloadBar` | `detailReqs` 비어있을 때 2단계 버튼 비활성화 |

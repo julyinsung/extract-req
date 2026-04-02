@@ -165,10 +165,12 @@ def _process_replace(full_text: str, req_group: str):
 
     Yields:
         replace SSE 이벤트 문자열 (교체 성공 시에만 발행)
+        error SSE 이벤트 문자열 (항목 수 상한 초과 시 발행)
 
     REPLACE와 PATCH는 동시에 사용하지 않도록 AI 프롬프트에서 제한하나,
     JSON 파싱 실패 시 해당 교체를 조용히 건너뛴다 — PATCH와 동일한 에러 정책.
     REQ-004-06: 교체 성공 시 state.replace_detail_group()을 호출하고 replace 이벤트를 발행한다.
+    SEC-004-04: 교체 항목 수가 기존 항목 수의 3배(최소 10개)를 초과하면 건너뛰고 error 이벤트를 발행한다.
     """
     for match in REPLACE_RE.finditer(full_text):
         try:
@@ -176,8 +178,17 @@ def _process_replace(full_text: str, req_group: str):
             if not isinstance(items_data, list):
                 continue
 
-            # 그룹 번호 추출: "REQ-001" → "001"
-            group_num = req_group.split("-")[-1] if "-" in req_group else req_group
+            # SEC-004-04: 교체 항목 수 상한 검증 — 기존 항목 수의 3배, 최소 10개
+            existing_items = state.get_detail_by_group(req_group)
+            max_items = max(len(existing_items) * 3, 10)
+            if len(items_data) > max_items:
+                yield _sse({
+                    "type": "error",
+                    "message": (
+                        f"REPLACE 항목 수({len(items_data)})가 허용 상한({max_items})을 초과합니다."
+                    ),
+                })
+                continue
 
             new_items: list[DetailRequirement] = []
             for idx, item in enumerate(items_data):

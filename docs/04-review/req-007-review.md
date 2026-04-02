@@ -2,7 +2,7 @@
 
 > 작성일: 2026-04-01
 > 담당: QA 에이전트
-> 리뷰 범위: REQ-007 — AI 백엔드 선택 옵션 (REQ-007-01 ~ REQ-007-04)
+> 리뷰 범위: REQ-007 — AI 백엔드 선택 옵션 (REQ-007-01, REQ-007-02, REQ-007-03, REQ-007-04)
 > 참조 문서: REQUIREMENTS.md, docs/02-design/req-007-design.md, docs/03-test-plan/TEST_PLAN.md
 
 ---

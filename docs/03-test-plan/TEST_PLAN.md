@@ -43,10 +43,10 @@
 | REQ-007 | UT-007-01 ~ UT-007-16 | PASS (2026-04-01) |
 | REQ-008 | UT-008-01 ~ UT-008-09 | PASS (2026-04-02) |
 | REQ-009 | UT-009-01 ~ UT-009-07 | PASS (2026-04-02) |
-| REQ-010 | UT-010-01 ~ UT-010-05 | pending |
-| REQ-011 | UT-011-01 ~ UT-011-02 | pending |
-| REQ-012 | UT-012-01 ~ UT-012-09 | pending |
-| REQ-013 | UT-013-01 ~ UT-013-14 | pending |
+| REQ-010 | UT-010-01 ~ UT-010-05 | PASS (2026-04-02) |
+| REQ-011 | UT-011-01 ~ UT-011-02 | PASS (2026-04-02) |
+| REQ-012 | UT-012-01 ~ UT-012-09 | PASS (2026-04-02) |
+| REQ-013 | UT-013-01 ~ UT-013-14 | PASS (2026-04-02) |
 
 ---
 
@@ -136,38 +136,38 @@
 | TST-SEC-17 | REQ-009-02 | SEC-009-02 | Security | High | Pass |
 | TST-SEC-18 | REQ-009-01 | SEC-009-03 | Security | High | Pass |
 | TST-SEC-19 | REQ-008-01 | SEC-008-02 | Security | Medium | Pass |
-| TST-010-01 | REQ-010-01 | AC-010-01 | Integration | High | 미실행 |
-| TST-010-02 | REQ-010-01 | AC-010-01 | Integration | High | 미실행 |
-| TST-010-03 | REQ-010-02 | AC-010-02 | E2E | High | 미실행 |
-| TST-010-04 | REQ-010-03 | AC-010-03 | E2E | High | 미실행 |
-| TST-011-01 | REQ-011-01 | AC-011-01 | E2E | Critical | 미실행 |
-| TST-011-02 | REQ-011-02 | AC-011-02 | E2E | Critical | 미실행 |
-| TST-011-03 | REQ-011-03 | AC-011-03 | E2E | High | 미실행 |
-| TST-012-01 | REQ-012-02 | AC-012-02 | Integration | Critical | 미실행 |
-| TST-012-02 | REQ-012-02 | AC-012-02 | Integration | Critical | 미실행 |
-| TST-012-03 | REQ-012-01, REQ-012-03 | AC-012-01, AC-012-03 | E2E | Critical | 미실행 |
-| TST-012-04 | REQ-012-03 | AC-012-03 | E2E | High | 미실행 |
-| TST-013-01 | REQ-013-01 | AC-013-01 | Integration | Critical | 미실행 |
-| TST-013-02 | REQ-013-01 | AC-013-01 | Integration | Critical | 미실행 |
-| TST-013-03 | REQ-013-01 | AC-013-01 | Integration | Critical | 미실행 |
-| TST-013-04 | REQ-013-02 | AC-013-01 | Integration | High | 미실행 |
-| TST-013-05 | REQ-013-03 | AC-013-02 | Integration | Critical | 미실행 |
-| TST-013-06 | REQ-013-03 | AC-013-02 | Integration | High | 미실행 |
-| TST-013-07 | REQ-013-03 | AC-013-02 | Integration | High | 미실행 |
-| TST-013-08 | REQ-013-04 | AC-013-04 | Integration | High | 미실행 |
-| TST-SEC-20 | REQ-012-02 | SEC-012-01 | Security | High | 미실행 |
-| TST-SEC-21 | REQ-012-02 | SEC-012-02 | Security | High | 미실행 |
-| TST-SEC-22 | REQ-012-02 | SEC-012-03 | Security | Medium | 미실행 |
-| TST-SEC-23 | REQ-013-01 | SEC-013-01 | Security | High | 미실행 |
-| TST-SEC-24 | REQ-013-03 | SEC-013-02 | Security | High | 미실행 |
-| TST-SEC-25 | REQ-013-01 | SEC-013-03 | Security | Medium | 미실행 |
-| TST-SEC-26 | REQ-013-01 | SEC-013-04 | Security | Medium | 미실행 |
-| TST-004-04 | REQ-004-04 | AC-004-04 | E2E | Critical | 미실행 |
-| TST-004-05 | REQ-004-04 | AC-004-04 | E2E | High | 미실행 |
-| TST-004-06 | REQ-004-05 | AC-004-05 | Integration | Critical | 미실행 |
-| TST-004-07 | REQ-004-05 | AC-004-05 | Integration | High | 미실행 |
-| TST-004-08 | REQ-004-06 | AC-004-06 | Integration | Critical | 미실행 |
-| TST-004-09 | REQ-004-06 | AC-004-06 | E2E | High | 미실행 |
-| TST-009-08 | REQ-009-04 | AC-009-04 | Integration | Critical | 미실행 |
-| TST-009-09 | REQ-009-04 | AC-009-04 | Integration | High | 미실행 |
-| TST-SEC-27 | REQ-004-04 | SEC-004-01 | Security | High | 미실행 |
+| TST-010-01 | REQ-010-01 | AC-010-01 | Integration | High | Pass |
+| TST-010-02 | REQ-010-01 | AC-010-01 | Integration | High | Pass |
+| TST-010-03 | REQ-010-02 | AC-010-02 | E2E | High | Pass |
+| TST-010-04 | REQ-010-03 | AC-010-03 | E2E | High | Pass |
+| TST-011-01 | REQ-011-01 | AC-011-01 | E2E | Critical | Pass |
+| TST-011-02 | REQ-011-02 | AC-011-02 | E2E | Critical | Pass |
+| TST-011-03 | REQ-011-03 | AC-011-03 | E2E | High | Pass |
+| TST-012-01 | REQ-012-02 | AC-012-02 | Integration | Critical | Pass |
+| TST-012-02 | REQ-012-02 | AC-012-02 | Integration | Critical | Pass |
+| TST-012-03 | REQ-012-01, REQ-012-03 | AC-012-01, AC-012-03 | E2E | Critical | Pass |
+| TST-012-04 | REQ-012-03 | AC-012-03 | E2E | High | Pass |
+| TST-013-01 | REQ-013-01 | AC-013-01 | Integration | Critical | Pass |
+| TST-013-02 | REQ-013-01 | AC-013-01 | Integration | Critical | Pass |
+| TST-013-03 | REQ-013-01 | AC-013-01 | Integration | Critical | Pass |
+| TST-013-04 | REQ-013-02 | AC-013-01 | Integration | High | Pass |
+| TST-013-05 | REQ-013-03 | AC-013-02 | Integration | Critical | Pass |
+| TST-013-06 | REQ-013-03 | AC-013-02 | Integration | High | Pass |
+| TST-013-07 | REQ-013-03 | AC-013-02 | Integration | High | Pass |
+| TST-013-08 | REQ-013-04 | AC-013-04 | Integration | High | Pass |
+| TST-SEC-20 | REQ-012-02 | SEC-012-01 | Security | High | Pass |
+| TST-SEC-21 | REQ-012-02 | SEC-012-02 | Security | High | Pass |
+| TST-SEC-22 | REQ-012-02 | SEC-012-03 | Security | Medium | Pass |
+| TST-SEC-23 | REQ-013-01 | SEC-013-01 | Security | High | Pass |
+| TST-SEC-24 | REQ-013-03 | SEC-013-02 | Security | High | Pass |
+| TST-SEC-25 | REQ-013-01 | SEC-013-03 | Security | Medium | Pass |
+| TST-SEC-26 | REQ-013-01 | SEC-013-04 | Security | Medium | Pass |
+| TST-004-04 | REQ-004-04 | AC-004-04 | E2E | Critical | Pass |
+| TST-004-05 | REQ-004-04 | AC-004-04 | E2E | High | Pass |
+| TST-004-06 | REQ-004-05 | AC-004-05 | Integration | Critical | Pass |
+| TST-004-07 | REQ-004-05 | AC-004-05 | Integration | High | Pass |
+| TST-004-08 | REQ-004-06 | AC-004-06 | Integration | Critical | Pass |
+| TST-004-09 | REQ-004-06 | AC-004-06 | E2E | High | Pass |
+| TST-009-08 | REQ-009-04 | AC-009-04 | Integration | Critical | Pass |
+| TST-009-09 | REQ-009-04 | AC-009-04 | Integration | High | Pass |
+| TST-SEC-27 | REQ-004-04 | SEC-004-01 | Security | High | Pass |

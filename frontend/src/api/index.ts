@@ -31,11 +31,10 @@ export function generateDetailStream(
     onDone: (total: number) => void
     onError: (msg: string) => void
   },
-  reqGroup?: string
+  reqGroup: string
 ): () => void {
   const controller = new AbortController()
-  const body: Record<string, string> = { session_id: sessionId }
-  if (reqGroup) body.req_group = reqGroup
+  const body: Record<string, string> = { session_id: sessionId, req_group: reqGroup }
 
   fetch(`${BASE}/generate`, {
     method: 'POST',

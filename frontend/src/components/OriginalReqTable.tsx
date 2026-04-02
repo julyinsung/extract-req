@@ -48,7 +48,7 @@ export function OriginalReqTable() {
    * progress 이벤트 수신 시 진행률 상태를 갱신한다 (REQ-010).
    */
   const handleGenerate = () => {
-    if (!sessionId || isGenerating) return
+    if (!sessionId || isGenerating || !selectedReqGroup) return
     setError(null)
     setIsGenerating(true)
     cleanupRef.current = generateDetailStream(
@@ -66,7 +66,8 @@ export function OriginalReqTable() {
           setIsGenerating(false)
           cleanupRef.current = null
         },
-      }
+      },
+      selectedReqGroup
     )
   }
 

@@ -2,28 +2,22 @@
   "project": "REQ",
   "vulcan_src": "C:\\Users\\user\\Documents\\antig-workspace\\Vulcan-Claude-Anvil",
   "vulcan_version": "1.0.0",
-  "current_gate": "completed",
+  "current_gate": "gate1",
   "gate_status": {
-    "gate1": "done",
-    "gate2": "done",
-    "gate3": "done",
-    "impl": "done",
-    "gate4": "done",
-    "gate5": "done"
+    "gate1": "pending",
+    "gate2": "pending",
+    "gate3": "pending",
+    "impl": "pending",
+    "gate4": "pending",
+    "gate5": "pending"
   },
   "feature": "REQ-008 인라인 편집 서버 동기화 + REQ-009 claude_code_sdk 세션 기반 연속 실행",
   "started": "2026-04-01",
-  "completed": [
-    "Gate 1 요구사항 - REQ-008 인라인 편집 서버 동기화 + REQ-009 claude_code_sdk 세션 기반 연속 실행",
-    "Gate 2 설계 - REQ-008 인라인 편집 서버 동기화 + REQ-009 claude_code_sdk 세션 기반 연속 실행",
-    "Gate 3 테스트 플랜 - REQ-008 인라인 편집 서버 동기화 + REQ-009 claude_code_sdk 세션 기반 연속 실행",
-    "구현 - REQ-008 인라인 편집 서버 동기화 + REQ-009 claude_code_sdk 세션 기반 연속 실행",
-    "Gate 4 QA 검토 - REQ-008 인라인 편집 서버 동기화 + REQ-009 claude_code_sdk 세션 기반 연속 실행",
-    "Gate 5 최종 승인 - REQ-008 인라인 편집 서버 동기화 + REQ-009 claude_code_sdk 세션 기반 연속 실행"
-  ],
+  "completed": [],
   "pending": [],
   "blocked": [
     "[rollback to gate2] 요구사항 추가",
-    "[rollback to gate1] 인라인 편집 서버 동기화 누락(BUG) 및 claude_code_sdk 세션 기반 연속 실행 요구사항 추가"
+    "[rollback to gate1] 인라인 편집 서버 동기화 누락(BUG) 및 claude_code_sdk 세션 기반 연속 실행 요구사항 추가",
+    "[rollback to gate1] 신규 요구사항 추가: 생성 진행률 표시, 채팅 REQ 그룹 선택 기반 컨텍스트, REPLACE 이벤트, 행 삭제, 채팅창 sticky, 파일 스냅샷"
   ]
 }

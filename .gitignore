@@ -3,3 +3,6 @@ node_modules/
 .env.local
 dashboard/.next/
 dashboard/node_modules/
+
+# HWP 테스트 파일
+*.hwp

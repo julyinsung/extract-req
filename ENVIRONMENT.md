@@ -169,6 +169,35 @@ backend/
 └── requirements.txt
 ```
 
+## E2E 테스트
+
+### Playwright 설치
+
+```bash
+cd frontend
+npm install -D @playwright/test
+npx playwright install
+```
+
+### E2E 테스트 실행
+
+```bash
+cd frontend
+npx playwright test
+```
+
+### 테스트용 샘플 파일
+
+| 용도 | 경로 |
+|------|------|
+| HWP 업로드 테스트 | `frontend/e2e/sample.hwp` |
+
+> `frontend/e2e/sample.hwp`는 git 미추적 파일(`.gitignore`)입니다. 테스트 시 직접 준비하여 해당 경로에 배치하세요.
+>
+> E2E 테스트 파일은 `frontend/e2e/` 디렉토리에 작성한다.
+
+---
+
 ## Gate 관리 명령어
 
 ```bash

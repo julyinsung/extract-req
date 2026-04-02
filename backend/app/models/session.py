@@ -28,3 +28,6 @@ class SessionState(BaseModel):
     detail_requirements: list[DetailRequirement] = []
     chat_messages: list[ChatMessage] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # REQ-009: claude-agent-sdk 세션 연속 실행을 위한 session_id.
+    # reset_session()이 새 SessionState()를 생성할 때 자동으로 None으로 초기화된다.
+    sdk_session_id: str | None = None

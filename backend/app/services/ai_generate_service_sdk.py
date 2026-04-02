@@ -171,6 +171,16 @@ class AIGenerateServiceSDK:
                         event = _parse_obj(obj_str, order_counters, details)
                         if event:
                             yield event
+                    # REQ-009-01: SDK 실행 완전 종료 시점에 session_id를 저장한다.
+                    # session_id가 None이거나 빈 문자열이면 저장 건너뜀 — 기존 동작(새 세션) 유지.
+                    sdk_sid = getattr(message, "session_id", None)
+                    if sdk_sid:
+                        state.set_sdk_session_id(sdk_sid)
+                    else:
+                        import logging
+                        logging.getLogger(__name__).warning(
+                            "ResultMessage에 session_id가 없습니다. 세션 연속성 비활성화."
+                        )
 
             state.set_detail(details)
             yield _sse({"type": "done", "total": len(details)})

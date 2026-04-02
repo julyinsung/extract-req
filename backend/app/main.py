@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import chat, download, generate, upload
+from app.routers import chat, detail, download, generate, upload
 
 # 서버 기동 시 .env에서 환경변수를 로드한다 — API 키 하드코딩 방지
 load_dotenv()
@@ -38,6 +38,7 @@ app.include_router(upload.router)
 app.include_router(generate.router)
 app.include_router(chat.router)
 app.include_router(download.router)
+app.include_router(detail.router)
 
 
 @app.get("/health")

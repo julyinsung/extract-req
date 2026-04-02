@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { OriginalRequirement, DetailRequirement, ChatMessage, AppPhase } from '../types'
+import { patchDetailReq as apiPatchDetailReq } from '../api'
 
 interface AppState {
   phase: AppPhase
@@ -23,6 +24,16 @@ interface AppActions {
    * 채팅 패치 및 인라인 편집 모두 이 액션을 통해 상태를 갱신한다.
    */
   patchDetailReq: (id: string, field: keyof DetailRequirement, value: string) => void
+  /**
+   * 인라인 편집 완료 시 서버 PATCH API를 호출하고, 성공 응답 후 스토어를 갱신한다 (REQ-008-02).
+   * 낙관적 업데이트를 사용하지 않는다 — 서버 응답 확인 후 갱신하여 데이터 일관성을 보장한다 (AC-008-03).
+   * API 실패 시 스토어를 갱신하지 않고 에러 상태를 설정한다.
+   */
+  syncPatchDetailReq: (
+    id: string,
+    field: 'name' | 'content' | 'category',
+    value: string
+  ) => Promise<void>
   appendChatMessage: (msg: ChatMessage) => void
   setIsUploading: (v: boolean) => void
   setIsGenerating: (v: boolean) => void
@@ -59,6 +70,21 @@ export const useAppStore = create<AppState & AppActions>((set) => ({
         r.id === id ? { ...r, [field]: value, is_modified: true } : r
       ),
     })),
+  syncPatchDetailReq: async (id, field, value) => {
+    // 서버 응답 확인 후 스토어를 갱신하여 서버-클라이언트 일관성을 보장한다 (AC-008-03).
+    // 실패 시 스토어는 이전 값을 유지하고 에러 상태만 설정한다.
+    try {
+      const updated = await apiPatchDetailReq(id, field, value)
+      set((s) => ({
+        detailReqs: s.detailReqs.map((r) => (r.id === id ? updated : r)),
+        error: null,
+      }))
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : '인라인 편집 저장에 실패했습니다.'
+      set({ error: message })
+    }
+  },
   appendChatMessage: (msg) => set((s) => ({ chatHistory: [...s.chatHistory, msg] })),
   setIsUploading: (isUploading) => set({ isUploading }),
   setIsGenerating: (isGenerating) => set({ isGenerating }),

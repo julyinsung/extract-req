@@ -57,6 +57,21 @@ def get_detail() -> list[DetailRequirement]:
     return get_session().detail_requirements
 
 
+def get_sdk_session_id() -> str | None:
+    """저장된 claude-agent-sdk session_id를 반환한다. 없으면 None."""
+    return get_session().sdk_session_id
+
+
+def set_sdk_session_id(session_id: str) -> None:
+    """claude-agent-sdk ResultMessage에서 추출한 session_id를 저장한다.
+
+    SEC-009-03: 기존 _lock 패턴과 동일하게 스레드 안전성을 보장한다.
+    """
+    session = get_session()
+    with _lock:
+        session.sdk_session_id = session_id
+
+
 def patch_detail(req_id: str, field: str, value: str) -> bool:
     """특정 상세요구사항의 단일 필드를 수정하고 is_modified를 True로 표시한다.
 

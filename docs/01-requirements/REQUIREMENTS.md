@@ -263,9 +263,9 @@
 
 | ID | 요구사항 | 우선순위 | 상태 | AC 참조 |
 |----|---------|---------|------|--------|
-| REQ-008-01 | 백엔드에 `PATCH /api/detail/{id}` 엔드포인트를 추가하여 특정 상세요구사항의 필드/값을 수정할 수 있다 | Must | 부분구현 (모델·state 함수 존재, 라우터 없음) | AC-008-01 |
-| REQ-008-02 | 프론트엔드 `patchDetailReq` 액션은 인라인 편집 저장 시 `PATCH /api/detail/{id}` API를 호출하여 서버 state를 갱신한다 | Must | 미구현 | AC-008-02 |
-| REQ-008-03 | 인라인 편집 완료 후 서버와 프론트엔드(Zustand 스토어)의 상세요구사항 데이터가 항상 일치한다 | Must | 미구현 | AC-008-03 |
+| REQ-008-01 | 백엔드에 `PATCH /api/detail/{id}` 엔드포인트를 추가하여 특정 상세요구사항의 필드/값을 수정할 수 있다 | Must | 구현완료 | AC-008-01 |
+| REQ-008-02 | 프론트엔드 `patchDetailReq` 액션은 인라인 편집 저장 시 `PATCH /api/detail/{id}` API를 호출하여 서버 state를 갱신한다 | Must | 구현완료 | AC-008-02 |
+| REQ-008-03 | 인라인 편집 완료 후 서버와 프론트엔드(Zustand 스토어)의 상세요구사항 데이터가 항상 일치한다 | Must | 구현완료 | AC-008-03 |
 
 #### AC-008-01: PATCH 엔드포인트 제공
 
@@ -291,9 +291,9 @@
 
 | ID | 요구사항 | 우선순위 | 상태 | AC 참조 |
 |----|---------|---------|------|--------|
-| REQ-009-01 | `claude_code_sdk` 백엔드 선택 시, 상세요구사항 최초 생성(`/api/generate`)을 세션 시작으로 삼아 반환된 `session_id`를 서버 state에 저장한다 | Must | 미구현 | AC-009-01 |
-| REQ-009-02 | 이후 채팅 요청(`/api/chat`)은 저장된 `session_id`를 `ClaudeAgentOptions(resume=session_id)`에 전달하여 동일 세션을 이어받아 처리한다 | Must | 미구현 | AC-009-02 |
-| REQ-009-03 | 새 HWP 파일 업로드 또는 "새로 생성" 버튼 클릭 시 서버 state의 `session_id`를 초기화한다 | Must | 미구현 | AC-009-03 |
+| REQ-009-01 | `claude_code_sdk` 백엔드 선택 시, 상세요구사항 최초 생성(`/api/generate`)을 세션 시작으로 삼아 반환된 `session_id`를 서버 state에 저장한다 | Must | 구현완료 | AC-009-01 |
+| REQ-009-02 | 이후 채팅 요청(`/api/chat`)은 저장된 `session_id`를 `ClaudeAgentOptions(resume=session_id)`에 전달하여 동일 세션을 이어받아 처리한다 | Must | 구현완료 | AC-009-02 |
+| REQ-009-03 | 새 HWP 파일 업로드 또는 "새로 생성" 버튼 클릭 시 서버 state의 `session_id`를 초기화한다 | Must | 구현완료 | AC-009-03 |
 
 #### AC-009-01: 세션 ID 저장
 

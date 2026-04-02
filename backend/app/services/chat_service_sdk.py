@@ -102,11 +102,21 @@ class ChatServiceSDK:
 
         try:
             cli_path = shutil.which("claude")
-            options = ClaudeAgentOptions(
-                allowed_tools=[],
-                permission_mode="default",
-                cli_path=cli_path,
-            )
+            # REQ-009-02: 저장된 sdk_session_id가 있으면 동일 세션을 이어받는다.
+            sdk_session_id = state.get_sdk_session_id()
+            if sdk_session_id:
+                options = ClaudeAgentOptions(
+                    allowed_tools=[],
+                    permission_mode="default",
+                    cli_path=cli_path,
+                    resume=sdk_session_id,
+                )
+            else:
+                options = ClaudeAgentOptions(
+                    allowed_tools=[],
+                    permission_mode="default",
+                    cli_path=cli_path,
+                )
 
             # Windows SelectorEventLoop 우회: 별도 스레드의 ProactorEventLoop에서 SDK 실행
             result_queue: Queue = Queue()

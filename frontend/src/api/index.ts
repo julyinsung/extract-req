@@ -107,6 +107,29 @@ export function chatStream(
 }
 
 /**
+ * 특정 상세 요구사항의 단일 필드를 서버에 PATCH 요청으로 수정한다 (REQ-008-02).
+ * SSE 스트림이 아닌 단순 JSON 응답이므로 fetch 대신 axios를 사용한다.
+ * 404 또는 네트워크 오류 시 예외를 throw하며, 호출자가 catch하여 에러 상태를 처리한다.
+ *
+ * @param id - 수정할 상세 요구사항의 ID (경로 파라미터)
+ * @param field - 수정할 필드명 ('name' | 'content' | 'category')
+ * @param value - 수정할 값
+ * @returns 수정된 DetailRequirement 객체
+ */
+export async function patchDetailReq(
+  id: string,
+  field: 'name' | 'content' | 'category',
+  value: string
+): Promise<DetailRequirement> {
+  const { data } = await axios.patch<DetailRequirement>(`${BASE}/detail/${id}`, {
+    detail_id: id,
+    field,
+    value,
+  })
+  return data
+}
+
+/**
  * 엑셀 다운로드 URL을 생성한다.
  * stage 1: 원본 요구사항만, stage 2: 원본 + 상세 요구사항 포함 (REQ-005).
  */

@@ -30,7 +30,7 @@ const TD_STYLE: React.CSSProperties = {
 export function DetailReqTable() {
   const detailReqs = useAppStore((s) => s.detailReqs)
   const isGenerating = useAppStore((s) => s.isGenerating)
-  const patchDetailReq = useAppStore((s) => s.patchDetailReq)
+  const syncPatchDetailReq = useAppStore((s) => s.syncPatchDetailReq)
 
   // 현재 편집 중인 셀 — { id, field } 쌍으로 관리
   const [editingCell, setEditingCell] = useState<{
@@ -58,13 +58,13 @@ export function DetailReqTable() {
     return () => window.removeEventListener('req-highlight', handler as EventListener)
   }, [])
 
-  /** 셀 저장 핸들러 — patchDetailReq 스토어 액션 호출 후 편집 모드 종료 */
+  /** 셀 저장 핸들러 — syncPatchDetailReq(API 호출 + 스토어 갱신) 후 편집 모드 종료 */
   const handleSave = (
     reqId: string,
     field: keyof DetailRequirement,
     value: string
   ) => {
-    patchDetailReq(reqId, field, value)
+    syncPatchDetailReq(reqId, field as 'name' | 'content' | 'category', value)
     setEditingCell(null)
   }
 

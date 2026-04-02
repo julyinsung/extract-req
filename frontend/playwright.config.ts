@@ -9,10 +9,11 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:3000',
-    headless: false,
-    screenshot: 'only-on-failure',
+    headless: true,
+    screenshot: 'on',
     video: 'off',
   },
+  outputDir: '../docs/04-review/screenshots',
   projects: [
     {
       name: 'chromium',
